@@ -6,6 +6,26 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 1 — Encrypted database & authentication
+- Database layer on `sql.js` (SQLite/WASM) with whole-file **AES-256-GCM**
+  encryption; key derived from the master password via `scrypt`. Replaces the
+  planned native SQLCipher module to avoid a C++ build toolchain — same at-rest
+  security, simpler builds and tests.
+- Atomic, encrypted persistence on every committed transaction; timestamped
+  backups helper.
+- Migration runner (`schema_migrations`) with the initial schema (`app_user`,
+  `settings`, `audit_log`).
+- Non-secret `keyfile.json` sidecar holding KDF params + lockout state.
+- Auth service: first-run setup, login with master password, logout,
+  failed-attempt lockout (escalating), and change-password (re-encrypt/rekey).
+- Audit logging of setup/login/logout/change-password.
+- IPC `auth` domain with Zod-validated payloads; renderer auth store.
+- Renderer flow: first-run **Setup wizard**, **Login**, authenticated **app
+  shell** (branded sidebar) with a placeholder Dashboard and a **Settings**
+  screen (account info + change password).
+- Vitest unit tests for crypto and the full auth/DB flow (6 passing).
+- `CHISEL_DATA_DIR` override to point the app at a throwaway data folder.
+
 ### Phase 0 — Scaffold & foundation
 - Initialized the Electron + electron-vite + React + TypeScript project.
 - Tailwind CSS configured with the Chisel brand palette (navy + red) sampled

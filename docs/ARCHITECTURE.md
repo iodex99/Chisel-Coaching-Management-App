@@ -86,5 +86,5 @@ build/                electron-builder build resources
 | Area | State |
 |---|---|
 | Scaffold, shell, branding, IPC bridge | ✅ Phase 0 |
-| Encrypted DB, migrations, auth | ⏳ Phase 1 |
+| Encrypted DB (sql.js + AES), migrations, auth, first-run setup | ✅ Phase 1 |
 | Everything else | ⏳ see build plan |

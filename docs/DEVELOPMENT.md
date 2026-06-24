@@ -3,21 +3,22 @@
 ## Prerequisites
 
 - Node.js 20+ (developed on 24.x), npm 10+.
-- Windows (the build target). Native modules build for the Electron ABI via
-  `electron-builder install-app-deps` (runs automatically on `postinstall`).
+- Windows (the build target). **No C++ build tools required** — the stack is
+  pure JS/WASM (the database is `sql.js`), so there are no native modules to
+  compile and `npm install` never invokes node-gyp.
 
 ## Setup
 
 ```bash
-npm install     # installs deps + rebuilds better-sqlite3-multiple-ciphers for Electron
+npm install     # pure JS/WASM deps — no native compilation
 npm run dev      # start the app with hot reload
 ```
 
-If the native module fails to load (`ERR_DLOPEN_FAILED` / ABI mismatch):
-
-```bash
-npx electron-builder install-app-deps
-```
+> Dev note: this machine has `ELECTRON_RUN_AS_NODE=1` set globally, which makes
+> Electron run as plain Node and crash on startup. When launching Electron
+> manually (smoke tests, Playwright), clear it first:
+> `Remove-Item Env:ELECTRON_RUN_AS_NODE`. `npm run dev` via electron-vite is
+> unaffected. It is not set on end-user machines.
 
 ## Scripts
 

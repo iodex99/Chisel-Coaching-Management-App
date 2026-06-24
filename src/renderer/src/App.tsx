@@ -1,34 +1,56 @@
-import { useEffect, useState } from 'react'
-import logo from './assets/logo.jpg'
+import { useEffect } from 'react'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from './lib/queryClient'
+import { useAuth } from './store/auth'
+import { Logo } from './components/Logo'
+import Setup from './screens/Setup'
+import Login from './screens/Login'
+import AppShell from './layout/AppShell'
+import Dashboard from './screens/Dashboard'
+import Settings from './screens/Settings'
 
-export default function App(): JSX.Element {
-  const [version, setVersion] = useState<string>('')
-
-  useEffect(() => {
-    window.api?.app
-      .getVersion()
-      .then(setVersion)
-      .catch(() => setVersion(''))
-  }, [])
-
+function Splash(): JSX.Element {
   return (
-    <div className="flex min-h-full items-center justify-center bg-gradient-to-br from-brand-800 via-brand-700 to-brand-900 p-6">
-      <div className="card w-full max-w-lg p-8 text-center">
-        <img src={logo} alt="Chisel Coaching Classes" className="mx-auto mb-6 w-72" />
-        <h1 className="text-2xl font-semibold text-brand-700">
-          Coaching Management
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Fees · Payments · Receipts · Expenses · Reports
-        </p>
-        <div className="mt-6 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
-          The application shell is ready. Secure login, the encrypted database
-          and the first-run setup wizard arrive in the next iteration.
-        </div>
-        {version && (
-          <p className="mt-6 text-xs text-slate-400">Version {version}</p>
-        )}
+    <div className="flex min-h-full items-center justify-center bg-gradient-to-br from-brand-800 via-brand-700 to-brand-900">
+      <div className="text-center">
+        <Logo className="mx-auto mb-4 w-64 rounded-lg bg-white p-3" />
+        <p className="text-sm text-white/70">Loading…</p>
       </div>
     </div>
   )
+}
+
+export default function App(): JSX.Element {
+  const loading = useAuth((s) => s.loading)
+  const state = useAuth((s) => s.state)
+  const user = useAuth((s) => s.user)
+  const refresh = useAuth((s) => s.refresh)
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  let content: JSX.Element
+  if (loading) {
+    content = <Splash />
+  } else if (!state?.initialized) {
+    content = <Setup />
+  } else if (!user) {
+    content = <Login />
+  } else {
+    content = (
+      <HashRouter>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route index element={<Dashboard />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </HashRouter>
+    )
+  }
+
+  return <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
 }

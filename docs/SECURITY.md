@@ -4,15 +4,17 @@
 
 The master password **is** the database key:
 
-1. On login, the app derives `key = scrypt(password, kdfSalt, params)`.
-2. The database is opened with `PRAGMA key = key`. A correct password decrypts
-   it; a wrong password fails to read.
-3. A non-secret sidecar `data/keyfile.json` stores `{ username, kdfSalt,
-   kdfParams, verifier }`, where `verifier` is an HMAC over the derived key. It
-   lets the app reject a wrong password quickly (and drive lockout) **without
-   storing the key or the password**.
-4. **Change password** re-encrypts the DB via SQLCipher `PRAGMA rekey` and
-   rewrites the verifier, with a backup taken first.
+1. On login, the app derives `key = scrypt(password, kdfSalt, params)`
+   (N=32768, r=8, p=1, 32-byte key) — `src/main/db/crypto.ts`.
+2. The encrypted database file is decrypted with that key (AES-256-GCM). A
+   correct password decrypts it and the GCM **auth tag** validates; a wrong
+   password (or a tampered file) makes decryption throw — so the auth tag *is*
+   the password verifier, with no secret stored anywhere.
+3. A non-secret sidecar `data/keyfile.json` stores `{ username, kdf: { salt,
+   N, r, p, keylen }, failedAttempts, lockedUntil }` — **no key, no password**.
+   It supplies the KDF parameters and holds lockout state.
+4. **Change password** re-encrypts the database under a freshly-derived key and
+   new salt (`Db.rekey`), updates the keyfile, and takes a backup first.
 
 > ⚠️ Because encryption is bound to the password, a forgotten master password
 > means the data cannot be decrypted. This is mitigated by recovery codes (for
@@ -58,5 +60,5 @@ copied:
 | Control | State |
 |---|---|
 | Renderer isolation, CSP | ✅ Phase 0 |
-| Password-derived encryption, keyfile, lockout | ⏳ Phase 1 |
+| Password-derived AES-256-GCM encryption, keyfile, lockout, change-password | ✅ Phase 1 |
 | TOTP, recovery codes, trusted devices | ⏳ Phase 2 |

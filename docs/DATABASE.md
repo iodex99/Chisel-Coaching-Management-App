@@ -2,12 +2,26 @@
 
 ## Engine & encryption
 
-- **Engine:** `better-sqlite3-multiple-ciphers` — synchronous SQLite with
-  SQLCipher (AES-256) page-level encryption.
+- **Engine:** `sql.js` — SQLite compiled to WebAssembly. Pure JS/WASM, so there
+  is **no native module to compile** (no Visual Studio build tools needed on dev
+  machines or CI), which keeps the build reproducible and unit tests trivial.
+- **Encryption:** the whole database file is encrypted with **AES-256-GCM**
+  (application level). The in-memory SQLite image is exported, encrypted and
+  written atomically on every committed transaction (`src/main/db/database.ts`).
+  This is a clean fit for the portable model — the entire DB is one encrypted
+  file that is useless without the password, and the GCM auth tag doubles as the
+  password verifier and tamper check.
+  > Rationale: the originally-planned SQLCipher (`better-sqlite3-multiple-ciphers`)
+  > needs a C++ toolchain that is not available here and complicates CI; the
+  > AES-256-GCM + scrypt approach delivers the same at-rest security guarantee.
 - **Location:** `data/chisel.db` inside the portable data folder (see
   [DEPLOYMENT.md](DEPLOYMENT.md)).
-- **Key:** derived from the admin's master password via `scrypt`. The key is
-  never written to disk. See [SECURITY.md](SECURITY.md).
+- **Key:** derived from the admin's master password via `scrypt`
+  (N=32768, r=8, p=1). The key is never written to disk. See
+  [SECURITY.md](SECURITY.md).
+- **Durability:** every committed write is persisted synchronously before the
+  call returns, so a crash cannot lose an acknowledged change. The dataset for a
+  coaching institute stays small (a few MB), so full-file persistence is fast.
 - **Money:** stored as integer **paise** (₹ × 100). Never floats.
 - **Dates:** stored as ISO-8601 strings (`YYYY-MM-DD`) or full timestamps.
 

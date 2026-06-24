@@ -12,6 +12,9 @@ import { existsSync, mkdirSync } from 'fs'
  * Development: a `data` folder in the project root (git-ignored).
  */
 export function resolveDataDir(): string {
+  // Explicit override (used by tests and E2E to point at a throwaway folder).
+  const override = process.env.CHISEL_DATA_DIR
+  if (override) return override
   if (app.isPackaged) {
     return join(dirname(app.getPath('exe')), 'data')
   }

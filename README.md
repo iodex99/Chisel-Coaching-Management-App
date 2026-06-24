@@ -32,7 +32,7 @@ storage, full portability, and one-click self-updates.
 | Shell | Electron + electron-vite |
 | UI | React 18 + TypeScript + Tailwind CSS |
 | State / data | Zustand + TanStack Query (over typed IPC) |
-| Database | better-sqlite3-multiple-ciphers (SQLCipher, encrypted) |
+| Database | sql.js (SQLite/WASM) + AES-256-GCM whole-file encryption |
 | 2FA | otplib (TOTP) + qrcode |
 | Receipts / PDF | Electron `printToPDF` over HTML templates |
 | Packaging | electron-builder (portable Windows folder + zip) |

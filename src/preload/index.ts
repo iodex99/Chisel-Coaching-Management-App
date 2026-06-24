@@ -10,6 +10,13 @@ const api: ChiselApi = {
   app: {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     getPlatform: () => process.platform
+  },
+  auth: {
+    getState: () => ipcRenderer.invoke('auth:getState'),
+    setup: (input) => ipcRenderer.invoke('auth:setup', input),
+    login: (input) => ipcRenderer.invoke('auth:login', input),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    changePassword: (input) => ipcRenderer.invoke('auth:changePassword', input)
   }
 }
 

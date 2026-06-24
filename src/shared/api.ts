@@ -1,3 +1,5 @@
+import type { AuthState, SetupInput, LoginInput, ChangePasswordInput, User } from './types'
+
 /**
  * The typed surface exposed to the renderer as `window.api`.
  *
@@ -10,5 +12,12 @@ export interface ChiselApi {
   app: {
     getVersion(): Promise<string>
     getPlatform(): NodeJS.Platform
+  }
+  auth: {
+    getState(): Promise<AuthState>
+    setup(input: SetupInput): Promise<User>
+    login(input: LoginInput): Promise<User>
+    logout(): Promise<void>
+    changePassword(input: ChangePasswordInput): Promise<void>
   }
 }
