@@ -13,3 +13,14 @@ export function fmtMoney(paise?: number | null): string {
   const value = (paise ?? 0) / 100
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value)
 }
+
+/** Convert a rupee input (string or number) to integer paise. */
+export function rupeesToPaise(rupees: string | number): number {
+  const n = typeof rupees === 'string' ? parseFloat(rupees) : rupees
+  return Number.isFinite(n) ? Math.round(n * 100) : 0
+}
+
+/** Convert integer paise to a plain rupee string for form inputs. */
+export function paiseToRupees(paise?: number | null): string {
+  return ((paise ?? 0) / 100).toString()
+}

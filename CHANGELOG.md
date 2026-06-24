@@ -6,6 +6,20 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 3 — Core data: students, batches, guardians, accounts
+- Migration `0003_core` (`accounts`, `batches`, `students`, `guardians`);
+  foreign keys enabled per connection for guardian cascade.
+- Services with CRUD for accounts, batches (with live student counts + delete
+  guard), and students (search/batch/status filters, guardian replace,
+  unique-admission-no enforcement, next-admission-no suggestion).
+- IPC `handle`/`handleAuthed` helpers with proper Zod output-type inference; all
+  data domains require an authenticated session.
+- UI: **Students** (searchable/filterable list, profile detail, create/edit with
+  a guardians repeater and batch assignment), **Batches** and **Accounts**
+  management screens; sidebar items enabled.
+- Money stored as integer paise; rupee↔paise helpers in the renderer.
+- Vitest core-CRUD tests (19 total passing).
+
 ### Phase 2 — Two-factor authentication
 - TOTP 2FA with `otplib` + QR enrollment (`qrcode`); up to **3** authenticator
   apps; verification tries each enrolled secret.

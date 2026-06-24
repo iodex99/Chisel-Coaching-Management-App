@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
+  GraduationCap,
   Wallet,
   Receipt,
   CalendarClock,
@@ -26,12 +27,13 @@ interface NavItem {
 /** Navigation. `enabled: false` items render as "Soon" until their phase lands. */
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, enabled: true, end: true },
-  { to: '/students', label: 'Students', icon: Users, enabled: false },
+  { to: '/students', label: 'Students', icon: Users, enabled: true },
+  { to: '/batches', label: 'Batches', icon: GraduationCap, enabled: true },
   { to: '/fees', label: 'Fees', icon: Wallet, enabled: false },
   { to: '/payments', label: 'Payments', icon: Receipt, enabled: false },
   { to: '/dues', label: 'Due Monitoring', icon: CalendarClock, enabled: false },
   { to: '/expenses', label: 'Expenses', icon: TrendingDown, enabled: false },
-  { to: '/accounts', label: 'Accounts', icon: Landmark, enabled: false },
+  { to: '/accounts', label: 'Accounts', icon: Landmark, enabled: true },
   { to: '/reports', label: 'Reports', icon: BarChart3, enabled: false },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, enabled: true }
 ]

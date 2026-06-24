@@ -42,3 +42,61 @@ export const verifyTwoFactorSchema = z.object({
 export const idSchema = z.object({
   id: z.number().int().positive()
 })
+
+// --- Accounts ---
+
+export const accountInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+  type: z.enum(['cash', 'bank', 'upi', 'other']),
+  openingBalance: z.number().int().min(0).default(0),
+  isActive: z.boolean().default(true),
+  notes: z.string().trim().max(500).optional()
+})
+export const accountUpdateSchema = z.object({ id: z.number().int().positive(), input: accountInputSchema })
+
+// --- Batches ---
+
+export const batchInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+  courseName: z.string().trim().max(80).optional(),
+  academicYear: z.string().trim().max(20).optional(),
+  defaultFee: z.number().int().min(0).default(0),
+  startDate: z.string().trim().max(10).optional(),
+  endDate: z.string().trim().max(10).optional(),
+  status: z.enum(['active', 'inactive']).default('active'),
+  notes: z.string().trim().max(500).optional()
+})
+export const batchUpdateSchema = z.object({ id: z.number().int().positive(), input: batchInputSchema })
+
+// --- Students & guardians ---
+
+export const guardianInputSchema = z.object({
+  name: z.string().trim().min(1, 'Guardian name is required').max(80),
+  relation: z.string().trim().max(40).optional(),
+  phone: z.string().trim().max(20).optional(),
+  email: z.string().trim().max(120).optional(),
+  occupation: z.string().trim().max(80).optional()
+})
+
+export const studentInputSchema = z.object({
+  admissionNo: z.string().trim().min(1, 'Admission number is required').max(40),
+  firstName: z.string().trim().min(1, 'First name is required').max(60),
+  lastName: z.string().trim().max(60).optional(),
+  gender: z.string().trim().max(10).optional(),
+  dob: z.string().trim().max(10).optional(),
+  phone: z.string().trim().max(20).optional(),
+  email: z.string().trim().max(120).optional(),
+  address: z.string().trim().max(300).optional(),
+  batchId: z.number().int().positive().nullable().optional(),
+  admissionDate: z.string().trim().max(10).optional(),
+  status: z.enum(['active', 'inactive', 'dropped', 'completed']).default('active'),
+  notes: z.string().trim().max(1000).optional(),
+  guardians: z.array(guardianInputSchema).max(5).default([])
+})
+export const studentUpdateSchema = z.object({ id: z.number().int().positive(), input: studentInputSchema })
+
+export const studentFilterSchema = z.object({
+  search: z.string().trim().max(80).optional(),
+  batchId: z.number().int().positive().nullable().optional(),
+  status: z.enum(['active', 'inactive', 'dropped', 'completed', 'all']).optional()
+})

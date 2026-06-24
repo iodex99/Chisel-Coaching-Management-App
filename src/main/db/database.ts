@@ -39,6 +39,8 @@ export class Db {
   constructor(sqldb: Database, key: Buffer) {
     this.sqldb = sqldb
     this.key = key
+    // Foreign keys are off by default in SQLite and reset per connection.
+    this.sqldb.run('PRAGMA foreign_keys = ON')
   }
 
   /** Direct access to the underlying sql.js handle (used by the migration runner). */

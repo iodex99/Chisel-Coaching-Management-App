@@ -8,6 +8,11 @@ import AuthGate from './screens/auth/AuthGate'
 import AppShell from './layout/AppShell'
 import Dashboard from './screens/Dashboard'
 import Settings from './screens/Settings'
+import Students from './screens/Students'
+import StudentForm from './screens/StudentForm'
+import StudentDetail from './screens/StudentDetail'
+import Batches from './screens/Batches'
+import Accounts from './screens/Accounts'
 
 function Splash(): JSX.Element {
   return (
@@ -40,6 +45,12 @@ export default function App(): JSX.Element {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Dashboard />} />
+            <Route path="students" element={<Students />} />
+            <Route path="students/new" element={<StudentForm />} />
+            <Route path="students/:id" element={<StudentDetail />} />
+            <Route path="students/:id/edit" element={<StudentForm />} />
+            <Route path="batches" element={<Batches />} />
+            <Route path="accounts" element={<Accounts />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

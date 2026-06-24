@@ -26,6 +26,26 @@ const api: ChiselApi = {
     status: () => ipcRenderer.invoke('twofactor:status'),
     removeAuthenticator: (input) => ipcRenderer.invoke('twofactor:removeAuthenticator', input),
     removeTrustedDevice: (input) => ipcRenderer.invoke('twofactor:removeTrustedDevice', input)
+  },
+  accounts: {
+    list: () => ipcRenderer.invoke('accounts:list'),
+    create: (input) => ipcRenderer.invoke('accounts:create', input),
+    update: (input) => ipcRenderer.invoke('accounts:update', input),
+    remove: (input) => ipcRenderer.invoke('accounts:remove', input)
+  },
+  batches: {
+    list: () => ipcRenderer.invoke('batches:list'),
+    create: (input) => ipcRenderer.invoke('batches:create', input),
+    update: (input) => ipcRenderer.invoke('batches:update', input),
+    remove: (input) => ipcRenderer.invoke('batches:remove', input)
+  },
+  students: {
+    list: (filter) => ipcRenderer.invoke('students:list', filter),
+    get: (input) => ipcRenderer.invoke('students:get', input),
+    create: (input) => ipcRenderer.invoke('students:create', input),
+    update: (input) => ipcRenderer.invoke('students:update', input),
+    remove: (input) => ipcRenderer.invoke('students:remove', input),
+    nextAdmissionNo: () => ipcRenderer.invoke('students:nextAdmissionNo')
   }
 }
 

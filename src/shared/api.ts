@@ -9,7 +9,16 @@ import type {
   ConfirmEnrollInput,
   VerifyTwoFactorInput,
   TwoFactorAuthenticator,
-  TwoFactorStatus
+  TwoFactorStatus,
+  Account,
+  AccountInput,
+  Batch,
+  BatchSummary,
+  BatchInput,
+  StudentListItem,
+  StudentDetail,
+  StudentInput,
+  StudentFilter
 } from './types'
 
 /**
@@ -44,5 +53,25 @@ export interface ChiselApi {
     status(): Promise<TwoFactorStatus>
     removeAuthenticator(input: { id: number }): Promise<void>
     removeTrustedDevice(input: { id: number }): Promise<void>
+  }
+  accounts: {
+    list(): Promise<Account[]>
+    create(input: AccountInput): Promise<Account>
+    update(input: { id: number; input: AccountInput }): Promise<Account>
+    remove(input: { id: number }): Promise<void>
+  }
+  batches: {
+    list(): Promise<BatchSummary[]>
+    create(input: BatchInput): Promise<Batch>
+    update(input: { id: number; input: BatchInput }): Promise<Batch>
+    remove(input: { id: number }): Promise<void>
+  }
+  students: {
+    list(filter: StudentFilter): Promise<StudentListItem[]>
+    get(input: { id: number }): Promise<StudentDetail | undefined>
+    create(input: StudentInput): Promise<StudentDetail>
+    update(input: { id: number; input: StudentInput }): Promise<StudentDetail>
+    remove(input: { id: number }): Promise<void>
+    nextAdmissionNo(): Promise<string>
   }
 }

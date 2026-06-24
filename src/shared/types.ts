@@ -69,6 +69,139 @@ export interface TwoFactorStatus {
   trustedDevices: TrustedDevice[]
 }
 
+// --- Accounts ---
+
+export type AccountType = 'cash' | 'bank' | 'upi' | 'other'
+
+export interface Account {
+  id: number
+  name: string
+  type: AccountType
+  openingBalance: number // paise
+  isActive: boolean
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AccountInput {
+  name: string
+  type: AccountType
+  openingBalance: number
+  isActive: boolean
+  notes?: string
+}
+
+// --- Batches ---
+
+export type BatchStatus = 'active' | 'inactive'
+
+export interface Batch {
+  id: number
+  name: string
+  courseName: string | null
+  academicYear: string | null
+  defaultFee: number // paise
+  startDate: string | null
+  endDate: string | null
+  status: BatchStatus
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BatchSummary extends Batch {
+  studentCount: number
+}
+
+export interface BatchInput {
+  name: string
+  courseName?: string
+  academicYear?: string
+  defaultFee: number
+  startDate?: string
+  endDate?: string
+  status: BatchStatus
+  notes?: string
+}
+
+// --- Guardians & students ---
+
+export interface Guardian {
+  id: number
+  name: string
+  relation: string | null
+  phone: string | null
+  email: string | null
+  occupation: string | null
+}
+
+export interface GuardianInput {
+  name: string
+  relation?: string
+  phone?: string
+  email?: string
+  occupation?: string
+}
+
+export type StudentStatus = 'active' | 'inactive' | 'dropped' | 'completed'
+
+export interface Student {
+  id: number
+  admissionNo: string
+  firstName: string
+  lastName: string | null
+  gender: string | null
+  dob: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  batchId: number | null
+  admissionDate: string | null
+  status: StudentStatus
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StudentListItem {
+  id: number
+  admissionNo: string
+  firstName: string
+  lastName: string | null
+  phone: string | null
+  status: StudentStatus
+  batchId: number | null
+  batchName: string | null
+}
+
+export interface StudentDetail extends Student {
+  batchName: string | null
+  guardians: Guardian[]
+}
+
+export interface StudentInput {
+  admissionNo: string
+  firstName: string
+  lastName?: string
+  gender?: string
+  dob?: string
+  phone?: string
+  email?: string
+  address?: string
+  batchId?: number | null
+  admissionDate?: string
+  status: StudentStatus
+  notes?: string
+  guardians: GuardianInput[]
+}
+
+export interface StudentFilter {
+  search?: string
+  batchId?: number | null
+  status?: StudentStatus | 'all'
+}
+
 export interface SetupInput {
   username: string
   password: string

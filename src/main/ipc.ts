@@ -1,7 +1,10 @@
 import { app, ipcMain } from 'electron'
-import type { ZodSchema } from 'zod'
+import { z, type ZodTypeAny } from 'zod'
 import * as auth from './services/auth'
 import * as twoFactor from './services/twoFactor'
+import * as accounts from './services/account'
+import * as batches from './services/batch'
+import * as students from './services/student'
 import {
   setupSchema,
   loginSchema,
@@ -9,25 +12,40 @@ import {
   beginEnrollSchema,
   confirmEnrollSchema,
   verifyTwoFactorSchema,
-  idSchema
+  idSchema,
+  accountInputSchema,
+  accountUpdateSchema,
+  batchInputSchema,
+  batchUpdateSchema,
+  studentInputSchema,
+  studentUpdateSchema,
+  studentFilterSchema
 } from '@shared/schemas'
 
-/**
- * Register an IPC handler. If a Zod schema is supplied, the incoming payload is
- * validated in the main process before the handler runs; validation failures
- * reject the renderer's invoke with a readable message.
- */
-function handle<I, O>(channel: string, schema: ZodSchema<I> | null, fn: (input: I) => Promise<O> | O): void {
+type Handler<I> = (input: I) => unknown
+
+function parse<S extends ZodTypeAny>(schema: S, raw: unknown): z.infer<S> {
+  const parsed = schema.safeParse(raw)
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join('; '))
+  }
+  return parsed.data
+}
+
+/** Register a handler with optional Zod validation of the payload. */
+function handle<S extends ZodTypeAny>(channel: string, schema: S, fn: Handler<z.infer<S>>): void
+function handle(channel: string, schema: null, fn: Handler<unknown>): void
+function handle(channel: string, schema: ZodTypeAny | null, fn: Handler<unknown>): void {
+  ipcMain.handle(channel, async (_event, raw) => fn(schema ? parse(schema, raw) : raw))
+}
+
+/** Like `handle`, but requires a fully-authenticated session first. */
+function handleAuthed<S extends ZodTypeAny>(channel: string, schema: S, fn: Handler<z.infer<S>>): void
+function handleAuthed(channel: string, schema: null, fn: Handler<unknown>): void
+function handleAuthed(channel: string, schema: ZodTypeAny | null, fn: Handler<unknown>): void {
   ipcMain.handle(channel, async (_event, raw) => {
-    let input = raw as I
-    if (schema) {
-      const parsed = schema.safeParse(raw)
-      if (!parsed.success) {
-        throw new Error(parsed.error.issues.map((i) => i.message).join('; '))
-      }
-      input = parsed.data
-    }
-    return fn(input)
+    auth.requireSession()
+    return fn(schema ? parse(schema, raw) : raw)
   })
 }
 
@@ -49,7 +67,7 @@ export function registerIpc(): void {
   })
   handle('twofactor:confirmEnroll', confirmEnrollSchema, (i) => {
     auth.requireStage('pending-enroll', 'authenticated')
-    const result = twoFactor.confirmEnroll(i.secret, i.label ?? 'Authenticator', i.code)
+    const result = twoFactor.confirmEnroll(i.secret, i.label, i.code)
     auth.noteEnrollment()
     return result
   })
@@ -70,4 +88,24 @@ export function registerIpc(): void {
     auth.requireStage('authenticated')
     twoFactor.removeTrustedDevice(i.id)
   })
+
+  // Accounts
+  handleAuthed('accounts:list', null, () => accounts.listAccounts())
+  handleAuthed('accounts:create', accountInputSchema, (i) => accounts.createAccount(i))
+  handleAuthed('accounts:update', accountUpdateSchema, (i) => accounts.updateAccount(i.id, i.input))
+  handleAuthed('accounts:remove', idSchema, (i) => accounts.deleteAccount(i.id))
+
+  // Batches
+  handleAuthed('batches:list', null, () => batches.listBatches())
+  handleAuthed('batches:create', batchInputSchema, (i) => batches.createBatch(i))
+  handleAuthed('batches:update', batchUpdateSchema, (i) => batches.updateBatch(i.id, i.input))
+  handleAuthed('batches:remove', idSchema, (i) => batches.deleteBatch(i.id))
+
+  // Students
+  handleAuthed('students:list', studentFilterSchema, (i) => students.listStudents(i))
+  handleAuthed('students:get', idSchema, (i) => students.getStudent(i.id))
+  handleAuthed('students:create', studentInputSchema, (i) => students.createStudent(i))
+  handleAuthed('students:update', studentUpdateSchema, (i) => students.updateStudent(i.id, i.input))
+  handleAuthed('students:remove', idSchema, (i) => students.deleteStudent(i.id))
+  handleAuthed('students:nextAdmissionNo', null, () => students.nextAdmissionNo())
 }
