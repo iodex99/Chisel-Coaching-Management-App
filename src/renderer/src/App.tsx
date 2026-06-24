@@ -17,6 +17,7 @@ import Fees from './screens/Fees'
 import Payments from './screens/Payments'
 import DueMonitoring from './screens/DueMonitoring'
 import Expenses from './screens/Expenses'
+import Reports from './screens/Reports'
 
 function Splash(): JSX.Element {
   return (
@@ -58,6 +59,7 @@ export default function App(): JSX.Element {
             <Route path="payments" element={<Payments />} />
             <Route path="dues" element={<DueMonitoring />} />
             <Route path="expenses" element={<Expenses />} />
+            <Route path="reports" element={<Reports />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />

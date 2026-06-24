@@ -34,7 +34,9 @@ import type {
   ExpenseInput,
   ExpenseRecord,
   ExpenseFilter,
-  ExpenseSummary
+  ExpenseSummary,
+  ReportType,
+  ReportResult
 } from './types'
 
 /**
@@ -135,5 +137,9 @@ export interface ChiselApi {
     update(input: { id: number; input: ExpenseInput }): Promise<ExpenseRecord>
     remove(input: { id: number }): Promise<void>
     summary(): Promise<ExpenseSummary>
+  }
+  reports: {
+    get(input: { type: ReportType; from?: string; to?: string }): Promise<ReportResult>
+    exportPdf(input: { type: ReportType; from?: string; to?: string }): Promise<string>
   }
 }

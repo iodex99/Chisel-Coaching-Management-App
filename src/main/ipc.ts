@@ -11,6 +11,7 @@ import * as payments from './services/payment'
 import * as receipts from './services/receipt'
 import * as dashboard from './services/dashboard'
 import * as expenses from './services/expense'
+import * as reports from './services/report'
 import {
   setupSchema,
   loginSchema,
@@ -40,7 +41,8 @@ import {
   vendorUpdateSchema,
   expenseInputSchema,
   expenseUpdateSchema,
-  expenseFilterSchema
+  expenseFilterSchema,
+  reportRequestSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -173,4 +175,8 @@ export function registerIpc(): void {
   handleAuthed('expenses:update', expenseUpdateSchema, (i) => expenses.updateExpense(i.id, i.input))
   handleAuthed('expenses:remove', idSchema, (i) => expenses.deleteExpense(i.id))
   handleAuthed('expenses:summary', null, () => expenses.getExpenseSummary())
+
+  // Reports
+  handleAuthed('reports:get', reportRequestSchema, (i) => reports.getReport(i.type, { from: i.from, to: i.to }))
+  handleAuthed('reports:exportPdf', reportRequestSchema, (i) => reports.exportReportPdf(i.type, { from: i.from, to: i.to }))
 }

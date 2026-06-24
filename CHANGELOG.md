@@ -6,6 +6,18 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 8 — Reports & analytics
+- Report service with 10 reports: collection by student / date / mode / batch,
+  outstanding fees; expenses by date / category / vendor / account / month —
+  each with date-range filtering and totals.
+- Shared `pdf.ts` helper (HTML→PDF and print) reused by receipts and reports;
+  receipts refactored onto it.
+- Report PDF export (branded HTML table → PDF, opened) and renderer-side **CSV**
+  export.
+- UI: **Reports** screen (grouped report picker, date range, generic table,
+  CSV/PDF export). Reports sidebar enabled.
+- Vitest report tests (37 total passing).
+
 ### Phase 7 — Expense management
 - Migration `0005_expenses` (`expense_categories` with starter categories,
   `vendors`, `expenses`).

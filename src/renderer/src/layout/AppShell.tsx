@@ -34,7 +34,7 @@ const NAV: NavItem[] = [
   { to: '/dues', label: 'Due Monitoring', icon: CalendarClock, enabled: true },
   { to: '/expenses', label: 'Expenses', icon: TrendingDown, enabled: true },
   { to: '/accounts', label: 'Accounts', icon: Landmark, enabled: true },
-  { to: '/reports', label: 'Reports', icon: BarChart3, enabled: false },
+  { to: '/reports', label: 'Reports', icon: BarChart3, enabled: true },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, enabled: true }
 ]
 

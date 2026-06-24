@@ -209,3 +209,22 @@ export const expenseFilterSchema = z.object({
   mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
   search: z.string().trim().max(80).optional()
 })
+
+// --- Reports ---
+
+export const reportRequestSchema = z.object({
+  type: z.enum([
+    'collection-by-student',
+    'outstanding',
+    'collection-by-date',
+    'collection-by-mode',
+    'collection-by-batch',
+    'expense-by-date',
+    'expense-by-category',
+    'expense-by-vendor',
+    'expense-by-account',
+    'expense-by-month'
+  ]),
+  from: z.string().trim().max(10).optional(),
+  to: z.string().trim().max(10).optional()
+})

@@ -93,4 +93,5 @@ build/                electron-builder build resources
 | Payments, allocations, receipt numbering, PDF/print, history | ✅ Phase 5 |
 | Dashboard (KPIs + collection chart), due monitoring | ✅ Phase 6 |
 | Expenses: categories, vendors, records, expense dashboard | ✅ Phase 7 |
-| Everything else | ⏳ see build plan |
+| Reports & analytics (10 reports) + CSV/PDF export | ✅ Phase 8 |
+| Settings (backup/restore), updater, packaging | ⏳ Phases 9–11 |

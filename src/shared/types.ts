@@ -429,6 +429,40 @@ export interface ExpenseSummary {
   trend: { month: string; label: string; amount: number }[]
 }
 
+// --- Reports ---
+
+export type ReportType =
+  | 'collection-by-student'
+  | 'outstanding'
+  | 'collection-by-date'
+  | 'collection-by-mode'
+  | 'collection-by-batch'
+  | 'expense-by-date'
+  | 'expense-by-category'
+  | 'expense-by-vendor'
+  | 'expense-by-account'
+  | 'expense-by-month'
+
+export interface ReportColumn {
+  key: string
+  label: string
+  type?: 'money' | 'date' | 'text' | 'number'
+  align?: 'left' | 'right'
+}
+
+export interface ReportRange {
+  from?: string
+  to?: string
+}
+
+export interface ReportResult {
+  type: ReportType
+  title: string
+  columns: ReportColumn[]
+  rows: Record<string, string | number | null>[]
+  totals?: Record<string, string | number | null>
+}
+
 export interface SetupInput {
   username: string
   password: string

@@ -1,8 +1,9 @@
-import { app, BrowserWindow, shell } from 'electron'
-import { readFileSync, writeFileSync, rmSync } from 'fs'
+import { app, shell } from 'electron'
+import { readFileSync } from 'fs'
 import { join } from 'path'
 import { dataPath } from '../paths'
 import { getReceiptData } from './payment'
+import { htmlToPdf, printHtml } from './pdf'
 import type { ReceiptData, PaymentMode } from '@shared/types'
 
 const MODE_LABEL: Record<PaymentMode, string> = {
@@ -106,43 +107,16 @@ function renderHtml(data: ReceiptData): string {
 </body></html>`
 }
 
-async function withReceiptWindow<T>(html: string, fn: (win: BrowserWindow) => Promise<T>): Promise<T> {
-  const tmp = dataPath('receipts', `.print-${Date.now()}.html`)
-  writeFileSync(tmp, html, 'utf8')
-  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: false } })
-  try {
-    await win.loadFile(tmp)
-    return await fn(win)
-  } finally {
-    win.destroy()
-    try {
-      rmSync(tmp)
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
 /** Render the receipt to a PDF in data/receipts and open it. Returns the path. */
 export async function exportPdf(paymentId: number): Promise<string> {
   const data = getReceiptData(paymentId)
-  const html = renderHtml(data)
   const file = dataPath('receipts', `${data.payment.receiptNo.replace(/[\\/:*?"<>|]/g, '-')}.pdf`)
-  await withReceiptWindow(html, async (win) => {
-    const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4' })
-    writeFileSync(file, pdf)
-  })
+  await htmlToPdf(renderHtml(data), file)
   await shell.openPath(file)
   return file
 }
 
 /** Open the system print dialog for the receipt. */
 export async function printReceipt(paymentId: number): Promise<void> {
-  const data = getReceiptData(paymentId)
-  const html = renderHtml(data)
-  await withReceiptWindow(html, (win) =>
-    new Promise<void>((resolve) => {
-      win.webContents.print({ printBackground: true }, () => resolve())
-    })
-  )
+  await printHtml(renderHtml(getReceiptData(paymentId)))
 }
