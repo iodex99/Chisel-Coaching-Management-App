@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+release/
+*.tsbuildinfo
+
+# Portable application data — NEVER commit (contains the local encrypted database, keyfile, receipts, backups)
+data/
+
+# Playwright / test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
+.env.local
+*.local
+
+# Electron-builder local cache
+.cache/

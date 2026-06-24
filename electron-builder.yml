@@ -1,0 +1,31 @@
+appId: com.chisel.coaching.management
+productName: Chisel Coaching
+copyright: Copyright © Chisel Coaching Classes
+
+directories:
+  output: release
+  buildResources: build
+
+# Bundle the compiled output + the runtime resources (logo, icons).
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+
+# The app has no native node modules. The SQLite WASM binary is read from the
+# asar archive at runtime, so no asarUnpack is required for it.
+
+extraMetadata:
+  main: out/main/index.js
+
+win:
+  # Portable distribution: an unpacked folder (zipped) so the whole app + ./data
+  # folder can be copied to a USB drive. Updates are handled by the in-app updater.
+  target:
+    - target: dir
+    - target: zip
+  artifactName: chisel-${version}.${ext}
+  icon: resources/icon.ico
+
+# We intentionally do NOT use NSIS — the app is portable and self-updating.
+publish: null
