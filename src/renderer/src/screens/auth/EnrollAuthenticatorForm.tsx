@@ -69,7 +69,9 @@ export function EnrollAuthenticatorForm({
         {data && (
           <div className="mt-3 text-center">
             <div className="text-xs text-slate-400">Or enter this key manually</div>
-            <code className="select-all text-sm font-medium tracking-wider text-slate-700">{data.secret}</code>
+            <code data-testid="totp-secret" className="select-all text-sm font-medium tracking-wider text-slate-700">
+              {data.secret}
+            </code>
           </div>
         )}
       </div>

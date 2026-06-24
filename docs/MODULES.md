@@ -56,5 +56,5 @@
 
 ## Status
 
-⏳ Modules land across Phases 3–8. This document tracks scope; per-screen status
-lives in the build plan and [CHANGELOG.md](../CHANGELOG.md).
+✅ All modules implemented in v1.0.0. This document tracks scope; release detail
+lives in [CHANGELOG.md](../CHANGELOG.md).

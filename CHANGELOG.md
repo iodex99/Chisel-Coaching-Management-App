@@ -4,7 +4,20 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
-## [Unreleased]
+## [1.0.0]
+
+First complete release: Student Fee Management and Expense Management modules,
+secure 2FA login, encrypted portable local storage, receipts, reporting,
+backups and one-click self-update.
+
+### Phase 11 — Testing, packaging & release
+- **Playwright end-to-end** test driving the real app: first-run setup → TOTP
+  enrollment → recovery codes → dashboard → create a batch (renderer→IPC→DB) →
+  sign out → sign in with password + TOTP → data persisted.
+- Verified the **packaged** Windows app boots and creates its portable `data/`
+  folder next to the executable, and that the encrypted-DB WASM ships inside the
+  asar.
+- Bumped to **v1.0.0**; docs finalized across `README` and `docs/`.
 
 ### Phase 10 — Auto-update & CI/CD
 - In-app updater (`update.ts`): checks the private repo's latest GitHub Release,

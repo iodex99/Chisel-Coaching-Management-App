@@ -74,6 +74,17 @@ iteration:
 
 ## Project status
 
-See [CHANGELOG.md](CHANGELOG.md) and the build plan. The build is staged:
-scaffold → encrypted DB + auth → 2FA → students/fees → payments/receipts →
-dashboards → expenses → reports → settings → updater → tests/release.
+**v1.0.0 — feature-complete.** All modules are implemented and verified:
+
+- ✅ Secure login + mandatory TOTP 2FA (3 apps, 3 trusted devices, recovery codes)
+- ✅ Encrypted (AES-256-GCM) portable local database; copy the folder to a USB drive
+- ✅ Students, guardians, batches, accounts
+- ✅ Fee plans, installments, outstanding tracking
+- ✅ Payment collection, allocation, unique receipts (PDF + print, reprint)
+- ✅ Dashboard, due monitoring, expense management
+- ✅ Reports (10 types) with CSV/PDF export
+- ✅ Institute profile, backup/restore, security management
+- ✅ One-click self-update from GitHub Releases + CI/CD
+
+Verified with Vitest (service/business-logic suites) and a Playwright
+end-to-end run, plus a packaged-app smoke test. See [CHANGELOG.md](CHANGELOG.md).

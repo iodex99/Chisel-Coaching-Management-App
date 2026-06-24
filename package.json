@@ -1,6 +1,6 @@
 {
   "name": "chisel-coaching-management",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Chisel Coaching Classes — desktop fee, payment, receipt and expense management application",
   "author": "Chisel Coaching Classes",
   "license": "UNLICENSED",
@@ -18,7 +18,7 @@
     "dist": "electron-vite build && electron-builder --win",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "electron-vite build && playwright test"
   },
   "dependencies": {
     "electron-log": "^5.2.4",

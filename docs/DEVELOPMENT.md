@@ -57,7 +57,19 @@ npm run dev      # start the app with hot reload
   data dir and drive first-run setup → login → create student → fee plan →
   payment → receipt → expense → reports → logout.
 
+## Packaging notes
+
+- `npm run pack` produces `release/win-unpacked/` (the portable folder) and
+  `npm run dist` adds the zip. On a dev machine **without Windows Developer Mode
+  / admin**, electron-builder's `winCodeSign` cache extraction can fail on a
+  symlink step *after* the app folder is written — the `win-unpacked` output is
+  still valid. GitHub Actions (`release.yml`, windows-latest) has the privilege
+  and builds cleanly; CI is the canonical release path.
+- We do not code-sign; Windows SmartScreen may warn on first download.
+
 ## Status
 
-✅ Phase 0 scaffold builds and runs. Subsequent phases extend services and
-screens; this guide is updated as conventions solidify.
+✅ Complete (v1.0.0): all modules, encrypted DB, 2FA, receipts, reports,
+backups, auto-update and CI/CD. Verified by Vitest (services) + a Playwright
+end-to-end run (first-run → 2FA → UI write → relogin) and a packaged-app smoke
+test.
