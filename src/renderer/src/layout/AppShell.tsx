@@ -30,7 +30,7 @@ const NAV: NavItem[] = [
   { to: '/students', label: 'Students', icon: Users, enabled: true },
   { to: '/batches', label: 'Batches', icon: GraduationCap, enabled: true },
   { to: '/fees', label: 'Fees', icon: Wallet, enabled: true },
-  { to: '/payments', label: 'Payments', icon: Receipt, enabled: false },
+  { to: '/payments', label: 'Payments', icon: Receipt, enabled: true },
   { to: '/dues', label: 'Due Monitoring', icon: CalendarClock, enabled: false },
   { to: '/expenses', label: 'Expenses', icon: TrendingDown, enabled: false },
   { to: '/accounts', label: 'Accounts', icon: Landmark, enabled: true },

@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2, Plus } from 'lucide-react'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtDate } from '../lib/format'
 import { FeePlanPanel } from './FeePlan'
+import { PaymentForm } from './PaymentForm'
+import { PaymentHistory } from './PaymentHistory'
+import { Modal } from '../components/Modal'
 
 function Row({ label, value }: { label: string; value?: string | null }): JSX.Element {
   return (
@@ -19,6 +23,7 @@ export default function StudentDetail(): JSX.Element {
   const { id } = useParams()
   const nav = useNavigate()
   const studentId = Number(id)
+  const [collecting, setCollecting] = useState(false)
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', studentId],
     queryFn: () => api.students.get({ id: studentId })
@@ -103,7 +108,21 @@ export default function StudentDetail(): JSX.Element {
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Fee plan</h2>
           <FeePlanPanel studentId={studentId} />
         </section>
+
+        <section className="lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Payment history</h2>
+            <button className="btn-primary" onClick={() => setCollecting(true)}>
+              <Plus size={16} /> Collect payment
+            </button>
+          </div>
+          <PaymentHistory filter={{ studentId, includeCancelled: true }} showStudent={false} />
+        </section>
       </div>
+
+      <Modal open={collecting} onClose={() => setCollecting(false)} title="Collect payment" width="max-w-2xl">
+        {collecting && <PaymentForm studentId={studentId} onDone={() => setCollecting(false)} />}
+      </Modal>
     </div>
   )
 }

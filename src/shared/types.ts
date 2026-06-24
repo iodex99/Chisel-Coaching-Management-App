@@ -256,6 +256,89 @@ export interface StudentFeeSummary {
   nextDueDate: string | null
 }
 
+// --- Settings ---
+
+export interface InstituteProfile {
+  name: string
+  address: string
+  phone: string
+  email: string
+  receiptPrefix: string
+  receiptFooter: string
+}
+
+// --- Payments & receipts ---
+
+export type PaymentMode = 'cash' | 'upi' | 'bank_transfer' | 'cheque' | 'other'
+
+export interface PaymentAllocationInput {
+  installmentId: number
+  amount: number
+}
+
+export interface PaymentInput {
+  studentId: number
+  amount: number
+  paymentDate: string
+  mode: PaymentMode
+  accountId?: number | null
+  referenceNo?: string
+  remarks?: string
+  allocations?: PaymentAllocationInput[]
+}
+
+export interface PaymentAllocationView {
+  installmentId: number | null
+  label: string | null
+  amount: number
+}
+
+export interface PaymentRecord {
+  id: number
+  receiptNo: string
+  studentId: number
+  studentName: string
+  admissionNo: string
+  paymentDate: string
+  amount: number
+  mode: PaymentMode
+  accountId: number | null
+  accountName: string | null
+  referenceNo: string | null
+  remarks: string | null
+  isCancelled: boolean
+  cancelReason: string | null
+  createdAt: string
+  allocations: PaymentAllocationView[]
+}
+
+export interface PaymentListItem {
+  id: number
+  receiptNo: string
+  studentId: number
+  studentName: string
+  paymentDate: string
+  amount: number
+  mode: PaymentMode
+  accountName: string | null
+  isCancelled: boolean
+}
+
+export interface PaymentFilter {
+  studentId?: number | null
+  dateFrom?: string
+  dateTo?: string
+  mode?: PaymentMode | 'all'
+  search?: string
+  includeCancelled?: boolean
+}
+
+export interface ReceiptData {
+  institute: InstituteProfile
+  payment: PaymentRecord
+  amountInWords: string
+}
+
 export interface SetupInput {
   username: string
   password: string

@@ -14,6 +14,7 @@ import StudentDetail from './screens/StudentDetail'
 import Batches from './screens/Batches'
 import Accounts from './screens/Accounts'
 import Fees from './screens/Fees'
+import Payments from './screens/Payments'
 
 function Splash(): JSX.Element {
   return (
@@ -52,6 +53,7 @@ export default function App(): JSX.Element {
             <Route path="students/:id/edit" element={<StudentForm />} />
             <Route path="batches" element={<Batches />} />
             <Route path="fees" element={<Fees />} />
+            <Route path="payments" element={<Payments />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />

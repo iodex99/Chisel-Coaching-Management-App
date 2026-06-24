@@ -52,6 +52,20 @@ const api: ChiselApi = {
     savePlan: (input) => ipcRenderer.invoke('fees:savePlan', input),
     deletePlan: (input) => ipcRenderer.invoke('fees:deletePlan', input),
     summaries: () => ipcRenderer.invoke('fees:summaries')
+  },
+  settings: {
+    getProfile: () => ipcRenderer.invoke('settings:getProfile'),
+    updateProfile: (input) => ipcRenderer.invoke('settings:updateProfile', input)
+  },
+  payments: {
+    record: (input) => ipcRenderer.invoke('payments:record', input),
+    list: (filter) => ipcRenderer.invoke('payments:list', filter),
+    get: (input) => ipcRenderer.invoke('payments:get', input),
+    cancel: (input) => ipcRenderer.invoke('payments:cancel', input)
+  },
+  receipts: {
+    exportPdf: (input) => ipcRenderer.invoke('receipts:exportPdf', input),
+    print: (input) => ipcRenderer.invoke('receipts:print', input)
   }
 }
 

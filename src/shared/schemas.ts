@@ -123,3 +123,48 @@ export const feePlanSaveSchema = z.object({
 })
 
 export const studentIdSchema = z.object({ studentId: z.number().int().positive() })
+
+// --- Settings ---
+
+export const instituteProfileSchema = z.object({
+  name: z.string().trim().min(1, 'Institute name is required').max(120),
+  address: z.string().trim().max(400).default(''),
+  phone: z.string().trim().max(60).default(''),
+  email: z.string().trim().max(120).default(''),
+  receiptPrefix: z.string().trim().max(20).default('CHISEL'),
+  receiptFooter: z.string().trim().max(300).default('')
+})
+
+// --- Payments ---
+
+const paymentAllocationSchema = z.object({
+  installmentId: z.number().int().positive(),
+  amount: z.number().int().min(0)
+})
+
+export const paymentInputSchema = z.object({
+  studentId: z.number().int().positive(),
+  amount: z.number().int().positive('Amount must be greater than zero'),
+  paymentDate: z.string().trim().min(1).max(10),
+  mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other']),
+  accountId: z.number().int().positive().nullable().optional(),
+  referenceNo: z.string().trim().max(60).optional(),
+  remarks: z.string().trim().max(300).optional(),
+  allocations: z.array(paymentAllocationSchema).max(60).optional()
+})
+
+export const paymentFilterSchema = z.object({
+  studentId: z.number().int().positive().nullable().optional(),
+  dateFrom: z.string().trim().max(10).optional(),
+  dateTo: z.string().trim().max(10).optional(),
+  mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
+  search: z.string().trim().max(80).optional(),
+  includeCancelled: z.boolean().optional()
+})
+
+export const cancelPaymentSchema = z.object({
+  id: z.number().int().positive(),
+  reason: z.string().trim().max(200).optional()
+})
+
+export const paymentIdSchema = z.object({ paymentId: z.number().int().positive() })

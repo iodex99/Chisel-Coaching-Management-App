@@ -21,7 +21,12 @@ import type {
   StudentFilter,
   FeePlanView,
   FeePlanInput,
-  StudentFeeSummary
+  StudentFeeSummary,
+  InstituteProfile,
+  PaymentInput,
+  PaymentRecord,
+  PaymentListItem,
+  PaymentFilter
 } from './types'
 
 /**
@@ -82,5 +87,19 @@ export interface ChiselApi {
     savePlan(input: { studentId: number; input: FeePlanInput }): Promise<FeePlanView>
     deletePlan(input: { studentId: number }): Promise<void>
     summaries(): Promise<StudentFeeSummary[]>
+  }
+  settings: {
+    getProfile(): Promise<InstituteProfile>
+    updateProfile(input: InstituteProfile): Promise<InstituteProfile>
+  }
+  payments: {
+    record(input: PaymentInput): Promise<PaymentRecord>
+    list(filter: PaymentFilter): Promise<PaymentListItem[]>
+    get(input: { paymentId: number }): Promise<PaymentRecord | undefined>
+    cancel(input: { id: number; reason?: string }): Promise<void>
+  }
+  receipts: {
+    exportPdf(input: { paymentId: number }): Promise<string>
+    print(input: { paymentId: number }): Promise<void>
   }
 }

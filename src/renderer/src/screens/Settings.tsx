@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { KeyRound } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { KeyRound, Building2 } from 'lucide-react'
+import type { InstituteProfile } from '@shared/types'
 import { useAuth } from '../store/auth'
 import { api, errMessage } from '../lib/api'
+import { queryClient } from '../lib/queryClient'
 import { MIN_PASSWORD_LENGTH } from '@shared/schemas'
 import { SecuritySettings } from './SecuritySettings'
 
@@ -29,12 +32,89 @@ export default function Settings(): JSX.Element {
           </dl>
         </section>
 
+        <InstituteProfileCard />
+
         <h2 className="-mb-2 mt-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Security</h2>
         <SecuritySettings />
 
         <ChangePasswordCard />
       </div>
     </div>
+  )
+}
+
+function InstituteProfileCard(): JSX.Element {
+  const { data } = useQuery({ queryKey: ['institute-profile'], queryFn: () => api.settings.getProfile() })
+  const [profile, setProfile] = useState<InstituteProfile | null>(null)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const current = profile ?? data ?? null
+
+  function set<K extends keyof InstituteProfile>(key: K, value: InstituteProfile[K]): void {
+    setProfile({ ...(current as InstituteProfile), [key]: value })
+  }
+
+  async function save(e: React.FormEvent): Promise<void> {
+    e.preventDefault()
+    if (!current) return
+    setBusy(true)
+    setError('')
+    setDone(false)
+    try {
+      await api.settings.updateProfile(current)
+      void queryClient.invalidateQueries({ queryKey: ['institute-profile'] })
+      setDone(true)
+    } catch (err) {
+      setError(errMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!current) return <section className="card p-6 text-sm text-slate-500">Loading profile…</section>
+
+  return (
+    <section className="card p-6">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <Building2 size={16} /> Institute profile
+      </h2>
+      <p className="mt-1 text-xs text-slate-400">Shown on printed receipts.</p>
+      <form onSubmit={save} className="mt-4 grid max-w-xl grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="label">Institute name</label>
+          <input className="input" value={current.name} onChange={(e) => set('name', e.target.value)} />
+        </div>
+        <div className="col-span-2">
+          <label className="label">Address</label>
+          <input className="input" value={current.address} onChange={(e) => set('address', e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Phone</label>
+          <input className="input" value={current.phone} onChange={(e) => set('phone', e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Email</label>
+          <input className="input" value={current.email} onChange={(e) => set('email', e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Receipt number prefix</label>
+          <input className="input" value={current.receiptPrefix} onChange={(e) => set('receiptPrefix', e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Receipt footer</label>
+          <input className="input" value={current.receiptFooter} onChange={(e) => set('receiptFooter', e.target.value)} />
+        </div>
+        <div className="col-span-2 flex items-center gap-3">
+          <button type="submit" className="btn-primary" disabled={busy}>
+            {busy ? 'Saving…' : 'Save profile'}
+          </button>
+          {done && <span className="text-sm text-green-600">Saved.</span>}
+          {error && <span className="text-sm text-accent-600">{error}</span>}
+        </div>
+      </form>
+    </section>
   )
 }
 

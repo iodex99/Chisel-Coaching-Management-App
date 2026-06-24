@@ -6,6 +6,22 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 5 — Payments & receipts
+- Payment service: record a payment with allocations across installments,
+  **atomic per-financial-year receipt numbering** (`PREFIX/FY/0001`), validation
+  that allocations don't exceed installment outstanding, and cancellation (which
+  excludes the payment from totals and restores outstanding).
+- Receipt service: branded HTML receipt → **PDF** (Electron `printToPDF`, saved
+  to `data/receipts` and opened) and **print** (system dialog); rupees-in-words
+  (Indian numbering). `printToPDF` verified working in this environment.
+- Settings service + **Institute profile** editor (name/address/phone/email +
+  receipt prefix/footer) used on receipts.
+- UI: **Payments** screen (record modal with auto-allocation, filterable
+  history, reprint, cancel), payment history + collect-payment on the student
+  page, reusable receipt actions. Payments sidebar item enabled.
+- Vitest payment tests: receipt numbering, allocation limits, cancel restores
+  outstanding, receipt data (29 total passing).
+
 ### Phase 4 — Fee structure & outstanding tracking
 - Migration `0004_fees` (`fee_plans`, `fee_installments`, plus the `payments`
   and `payment_allocations` tables that the payments phase will populate).

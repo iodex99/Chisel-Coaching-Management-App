@@ -6,6 +6,9 @@ import * as accounts from './services/account'
 import * as batches from './services/batch'
 import * as students from './services/student'
 import * as fees from './services/fee'
+import * as settings from './services/settings'
+import * as payments from './services/payment'
+import * as receipts from './services/receipt'
 import {
   setupSchema,
   loginSchema,
@@ -22,7 +25,12 @@ import {
   studentUpdateSchema,
   studentFilterSchema,
   feePlanSaveSchema,
-  studentIdSchema
+  studentIdSchema,
+  instituteProfileSchema,
+  paymentInputSchema,
+  paymentFilterSchema,
+  cancelPaymentSchema,
+  paymentIdSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -117,4 +125,18 @@ export function registerIpc(): void {
   handleAuthed('fees:savePlan', feePlanSaveSchema, (i) => fees.saveFeePlan(i.studentId, i.input))
   handleAuthed('fees:deletePlan', studentIdSchema, (i) => fees.deleteFeePlan(i.studentId))
   handleAuthed('fees:summaries', null, () => fees.listFeeSummaries())
+
+  // Settings (institute profile)
+  handleAuthed('settings:getProfile', null, () => settings.getInstituteProfile())
+  handleAuthed('settings:updateProfile', instituteProfileSchema, (i) => settings.updateInstituteProfile(i))
+
+  // Payments
+  handleAuthed('payments:record', paymentInputSchema, (i) => payments.recordPayment(i, auth.currentUser()?.id ?? 1))
+  handleAuthed('payments:list', paymentFilterSchema, (i) => payments.listPayments(i))
+  handleAuthed('payments:get', paymentIdSchema, (i) => payments.getPayment(i.paymentId))
+  handleAuthed('payments:cancel', cancelPaymentSchema, (i) => payments.cancelPayment(i.id, i.reason))
+
+  // Receipts
+  handleAuthed('receipts:exportPdf', paymentIdSchema, (i) => receipts.exportPdf(i.paymentId))
+  handleAuthed('receipts:print', paymentIdSchema, (i) => receipts.printReceipt(i.paymentId))
 }

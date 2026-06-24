@@ -90,4 +90,5 @@ build/                electron-builder build resources
 | 2FA: TOTP, recovery codes, trusted devices; staged login | ✅ Phase 2 |
 | Students, batches, guardians, accounts (CRUD services + UI) | ✅ Phase 3 |
 | Fee plans, installments, outstanding/status, fees overview | ✅ Phase 4 |
+| Payments, allocations, receipt numbering, PDF/print, history | ✅ Phase 5 |
 | Everything else | ⏳ see build plan |
