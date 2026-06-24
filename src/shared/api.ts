@@ -36,7 +36,8 @@ import type {
   ExpenseFilter,
   ExpenseSummary,
   ReportType,
-  ReportResult
+  ReportResult,
+  BackupInfo
 } from './types'
 
 /**
@@ -141,5 +142,13 @@ export interface ChiselApi {
   reports: {
     get(input: { type: ReportType; from?: string; to?: string }): Promise<ReportResult>
     exportPdf(input: { type: ReportType; from?: string; to?: string }): Promise<string>
+  }
+  backups: {
+    list(): Promise<BackupInfo[]>
+    create(): Promise<BackupInfo>
+    remove(input: { name: string }): Promise<void>
+    restore(input: { name: string }): Promise<void>
+    getAuto(): Promise<boolean>
+    setAuto(input: { enabled: boolean }): Promise<void>
   }
 }

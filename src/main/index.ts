@@ -3,6 +3,7 @@ import { join } from 'path'
 import log from 'electron-log/main'
 import { ensureDataDirs, dataPath } from './paths'
 import { registerIpc } from './ipc'
+import { autoBackupOnExit } from './services/backup'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -69,6 +70,10 @@ if (!gotLock) {
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
+  })
+
+  app.on('will-quit', () => {
+    autoBackupOnExit()
   })
 
   app.on('window-all-closed', () => {

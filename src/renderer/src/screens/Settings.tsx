@@ -7,6 +7,7 @@ import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { MIN_PASSWORD_LENGTH } from '@shared/schemas'
 import { SecuritySettings } from './SecuritySettings'
+import { BackupSettings } from './BackupSettings'
 
 export default function Settings(): JSX.Element {
   const user = useAuth((s) => s.user)
@@ -33,6 +34,8 @@ export default function Settings(): JSX.Element {
         </section>
 
         <InstituteProfileCard />
+
+        <BackupSettings />
 
         <h2 className="-mb-2 mt-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Security</h2>
         <SecuritySettings />

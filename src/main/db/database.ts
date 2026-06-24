@@ -160,6 +160,12 @@ export function closeDatabase(): void {
   }
 }
 
+/** Drop the in-memory database WITHOUT persisting (used before a restore so the
+ * stale image cannot overwrite the freshly-restored file). */
+export function discardDatabase(): void {
+  current = null
+}
+
 /** Copy the encrypted database file into data/backups with a timestamped name. */
 export function backupDbFile(label: string): string | null {
   if (!existsSync(dbFilePath())) return null

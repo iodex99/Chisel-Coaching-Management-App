@@ -6,6 +6,17 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 9 — Settings: backup & restore
+- Backup service: each backup is a folder containing both the encrypted database
+  **and** its key file, so restores survive later password changes.
+- Create / list / delete backups; **restore** snapshots current data first, drops
+  the in-memory DB without persisting (so it can't overwrite the restored file),
+  swaps the files, and forces re-login.
+- Automatic backup on exit (keeps the last 10), toggleable.
+- UI: Settings → **Data & backups** (create, auto toggle, restore/delete list).
+  Institute profile (Phase 5) and security (Phase 2) complete the Settings page.
+- Vitest backup/restore test verifying a true rollback (39 total passing).
+
 ### Phase 8 — Reports & analytics
 - Report service with 10 reports: collection by student / date / mode / batch,
   outstanding fees; expenses by date / category / vendor / account / month —

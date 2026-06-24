@@ -228,3 +228,8 @@ export const reportRequestSchema = z.object({
   from: z.string().trim().max(10).optional(),
   to: z.string().trim().max(10).optional()
 })
+
+// --- Backups ---
+
+export const backupNameSchema = z.object({ name: z.string().trim().min(1).max(160) })
+export const autoBackupSchema = z.object({ enabled: z.boolean() })

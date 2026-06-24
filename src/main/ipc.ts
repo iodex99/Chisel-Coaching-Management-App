@@ -12,6 +12,7 @@ import * as receipts from './services/receipt'
 import * as dashboard from './services/dashboard'
 import * as expenses from './services/expense'
 import * as reports from './services/report'
+import * as backup from './services/backup'
 import {
   setupSchema,
   loginSchema,
@@ -42,7 +43,9 @@ import {
   expenseInputSchema,
   expenseUpdateSchema,
   expenseFilterSchema,
-  reportRequestSchema
+  reportRequestSchema,
+  backupNameSchema,
+  autoBackupSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -179,4 +182,12 @@ export function registerIpc(): void {
   // Reports
   handleAuthed('reports:get', reportRequestSchema, (i) => reports.getReport(i.type, { from: i.from, to: i.to }))
   handleAuthed('reports:exportPdf', reportRequestSchema, (i) => reports.exportReportPdf(i.type, { from: i.from, to: i.to }))
+
+  // Backups
+  handleAuthed('backups:list', null, () => backup.listBackups())
+  handleAuthed('backups:create', null, () => backup.createBackup('manual'))
+  handleAuthed('backups:remove', backupNameSchema, (i) => backup.deleteBackup(i.name))
+  handleAuthed('backups:restore', backupNameSchema, (i) => backup.restoreBackup(i.name))
+  handleAuthed('backups:getAuto', null, () => backup.getAutoBackup())
+  handleAuthed('backups:setAuto', autoBackupSchema, (i) => backup.setAutoBackup(i.enabled))
 }

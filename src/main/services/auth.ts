@@ -11,6 +11,7 @@ import {
   createNewDatabase,
   openExistingDatabase,
   closeDatabase,
+  discardDatabase,
   getDb,
   dbFileExists,
   backupDbFile
@@ -209,6 +210,13 @@ export function logout(): void {
   if (session) audit('logout')
   closeDatabase()
   session = null
+}
+
+/** Clear the session and drop the in-memory DB WITHOUT persisting. Used by
+ * restore so the live (pre-restore) data cannot overwrite the restored files. */
+export function discardSession(): void {
+  session = null
+  discardDatabase()
 }
 
 /** Change the master password and re-encrypt the database under the new key. */

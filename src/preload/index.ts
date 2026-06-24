@@ -96,6 +96,14 @@ const api: ChiselApi = {
   reports: {
     get: (input) => ipcRenderer.invoke('reports:get', input),
     exportPdf: (input) => ipcRenderer.invoke('reports:exportPdf', input)
+  },
+  backups: {
+    list: () => ipcRenderer.invoke('backups:list'),
+    create: () => ipcRenderer.invoke('backups:create'),
+    remove: (input) => ipcRenderer.invoke('backups:remove', input),
+    restore: (input) => ipcRenderer.invoke('backups:restore', input),
+    getAuto: () => ipcRenderer.invoke('backups:getAuto'),
+    setAuto: (input) => ipcRenderer.invoke('backups:setAuto', input)
   }
 }
 

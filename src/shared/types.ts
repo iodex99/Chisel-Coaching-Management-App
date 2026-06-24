@@ -429,6 +429,14 @@ export interface ExpenseSummary {
   trend: { month: string; label: string; amount: number }[]
 }
 
+// --- Backups ---
+
+export interface BackupInfo {
+  name: string
+  createdAt: string
+  sizeBytes: number
+}
+
 // --- Reports ---
 
 export type ReportType =

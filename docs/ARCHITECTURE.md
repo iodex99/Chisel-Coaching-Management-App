@@ -94,4 +94,5 @@ build/                electron-builder build resources
 | Dashboard (KPIs + collection chart), due monitoring | ✅ Phase 6 |
 | Expenses: categories, vendors, records, expense dashboard | ✅ Phase 7 |
 | Reports & analytics (10 reports) + CSV/PDF export | ✅ Phase 8 |
-| Settings (backup/restore), updater, packaging | ⏳ Phases 9–11 |
+| Settings: institute profile, security, backup/restore | ✅ Phase 9 |
+| Auto-updater + GitHub Actions release, packaging, E2E | ⏳ Phases 10–11 |
