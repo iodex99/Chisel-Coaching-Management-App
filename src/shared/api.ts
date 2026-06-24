@@ -28,7 +28,13 @@ import type {
   PaymentListItem,
   PaymentFilter,
   DashboardData,
-  DueItem
+  DueItem,
+  ExpenseCategory,
+  Vendor,
+  ExpenseInput,
+  ExpenseRecord,
+  ExpenseFilter,
+  ExpenseSummary
 } from './types'
 
 /**
@@ -110,5 +116,24 @@ export interface ChiselApi {
   dues: {
     overdue(): Promise<DueItem[]>
     upcoming(input: { days?: number }): Promise<DueItem[]>
+  }
+  expenseCategories: {
+    list(): Promise<ExpenseCategory[]>
+    create(input: { name: string }): Promise<ExpenseCategory>
+    update(input: { id: number; input: { name: string } }): Promise<void>
+    remove(input: { id: number }): Promise<void>
+  }
+  vendors: {
+    list(): Promise<Vendor[]>
+    create(input: { name: string; contact?: string; notes?: string }): Promise<Vendor>
+    update(input: { id: number; input: { name: string; contact?: string; notes?: string } }): Promise<void>
+    remove(input: { id: number }): Promise<void>
+  }
+  expenses: {
+    list(filter: ExpenseFilter): Promise<ExpenseRecord[]>
+    create(input: ExpenseInput): Promise<ExpenseRecord>
+    update(input: { id: number; input: ExpenseInput }): Promise<ExpenseRecord>
+    remove(input: { id: number }): Promise<void>
+    summary(): Promise<ExpenseSummary>
   }
 }

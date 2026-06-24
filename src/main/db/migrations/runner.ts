@@ -10,9 +10,10 @@ import { m0001_init } from './0001_init'
 import { m0002_two_factor } from './0002_two_factor'
 import { m0003_core } from './0003_core'
 import { m0004_fees } from './0004_fees'
+import { m0005_expenses } from './0005_expenses'
 
 /** Ordered list of all migrations. Append new ones; never edit a shipped one. */
-export const MIGRATIONS: Migration[] = [m0001_init, m0002_two_factor, m0003_core, m0004_fees]
+export const MIGRATIONS: Migration[] = [m0001_init, m0002_two_factor, m0003_core, m0004_fees, m0005_expenses]
 
 /**
  * Apply any migrations whose version is newer than the highest applied. Each

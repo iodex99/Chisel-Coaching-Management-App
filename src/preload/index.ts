@@ -73,6 +73,25 @@ const api: ChiselApi = {
   dues: {
     overdue: () => ipcRenderer.invoke('dues:overdue'),
     upcoming: (input) => ipcRenderer.invoke('dues:upcoming', input)
+  },
+  expenseCategories: {
+    list: () => ipcRenderer.invoke('expenseCategories:list'),
+    create: (input) => ipcRenderer.invoke('expenseCategories:create', input),
+    update: (input) => ipcRenderer.invoke('expenseCategories:update', input),
+    remove: (input) => ipcRenderer.invoke('expenseCategories:remove', input)
+  },
+  vendors: {
+    list: () => ipcRenderer.invoke('vendors:list'),
+    create: (input) => ipcRenderer.invoke('vendors:create', input),
+    update: (input) => ipcRenderer.invoke('vendors:update', input),
+    remove: (input) => ipcRenderer.invoke('vendors:remove', input)
+  },
+  expenses: {
+    list: (filter) => ipcRenderer.invoke('expenses:list', filter),
+    create: (input) => ipcRenderer.invoke('expenses:create', input),
+    update: (input) => ipcRenderer.invoke('expenses:update', input),
+    remove: (input) => ipcRenderer.invoke('expenses:remove', input),
+    summary: () => ipcRenderer.invoke('expenses:summary')
   }
 }
 

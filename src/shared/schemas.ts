@@ -172,3 +172,40 @@ export const paymentIdSchema = z.object({ paymentId: z.number().int().positive()
 // --- Dues ---
 
 export const upcomingSchema = z.object({ days: z.number().int().min(1).max(365).default(30) })
+
+// --- Expenses ---
+
+const PAYMENT_MODE = z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other'])
+
+export const expenseCategoryInputSchema = z.object({ name: z.string().trim().min(1, 'Name is required').max(60) })
+export const expenseCategoryUpdateSchema = z.object({ id: z.number().int().positive(), input: expenseCategoryInputSchema })
+
+export const vendorInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+  contact: z.string().trim().max(80).optional(),
+  notes: z.string().trim().max(300).optional()
+})
+export const vendorUpdateSchema = z.object({ id: z.number().int().positive(), input: vendorInputSchema })
+
+export const expenseInputSchema = z.object({
+  expenseDate: z.string().trim().min(1).max(10),
+  categoryId: z.number().int().positive().nullable().optional(),
+  vendorId: z.number().int().positive().nullable().optional(),
+  payee: z.string().trim().max(120).optional(),
+  amount: z.number().int().positive('Amount must be greater than zero'),
+  mode: PAYMENT_MODE,
+  accountId: z.number().int().positive().nullable().optional(),
+  referenceNo: z.string().trim().max(60).optional(),
+  remarks: z.string().trim().max(300).optional()
+})
+export const expenseUpdateSchema = z.object({ id: z.number().int().positive(), input: expenseInputSchema })
+
+export const expenseFilterSchema = z.object({
+  dateFrom: z.string().trim().max(10).optional(),
+  dateTo: z.string().trim().max(10).optional(),
+  categoryId: z.number().int().positive().nullable().optional(),
+  vendorId: z.number().int().positive().nullable().optional(),
+  accountId: z.number().int().positive().nullable().optional(),
+  mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
+  search: z.string().trim().max(80).optional()
+})

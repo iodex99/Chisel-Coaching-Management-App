@@ -121,9 +121,16 @@ export function getDashboard(): DashboardData {
      WHERE p.is_cancelled = 0 ORDER BY p.created_at DESC LIMIT 6`
   )
 
+  const monthCollection = collectionBetween(monthStart, t)
+  const monthExpenses =
+    getDb().get<{ t: number }>('SELECT COALESCE(SUM(amount), 0) AS t FROM expenses WHERE expense_date >= ?', [monthStart])
+      ?.t ?? 0
+
   return {
     todayCollection: collectionBetween(t, t),
-    monthCollection: collectionBetween(monthStart, t),
+    monthCollection,
+    monthExpenses,
+    monthNet: monthCollection - monthExpenses,
     totalOutstanding,
     overdueStudents,
     overdueAmount,

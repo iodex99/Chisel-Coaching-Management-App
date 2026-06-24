@@ -357,12 +357,76 @@ export interface DueItem {
 export interface DashboardData {
   todayCollection: number
   monthCollection: number
+  monthExpenses: number
+  monthNet: number
   totalOutstanding: number
   overdueStudents: number
   overdueAmount: number
   upcomingCount: number
   collectionTrend: { month: string; label: string; amount: number }[]
   recentPayments: PaymentListItem[]
+}
+
+// --- Expenses ---
+
+export interface ExpenseCategory {
+  id: number
+  name: string
+  isActive: boolean
+}
+
+export interface Vendor {
+  id: number
+  name: string
+  contact: string | null
+  notes: string | null
+  isActive: boolean
+}
+
+export interface ExpenseInput {
+  expenseDate: string
+  categoryId?: number | null
+  vendorId?: number | null
+  payee?: string
+  amount: number
+  mode: PaymentMode
+  accountId?: number | null
+  referenceNo?: string
+  remarks?: string
+}
+
+export interface ExpenseRecord {
+  id: number
+  expenseDate: string
+  categoryId: number | null
+  categoryName: string | null
+  vendorId: number | null
+  vendorName: string | null
+  payee: string | null
+  amount: number
+  mode: PaymentMode
+  accountId: number | null
+  accountName: string | null
+  referenceNo: string | null
+  remarks: string | null
+  createdAt: string
+}
+
+export interface ExpenseFilter {
+  dateFrom?: string
+  dateTo?: string
+  categoryId?: number | null
+  vendorId?: number | null
+  accountId?: number | null
+  mode?: PaymentMode | 'all'
+  search?: string
+}
+
+export interface ExpenseSummary {
+  monthTotal: number
+  allTimeTotal: number
+  byCategory: { category: string; total: number }[]
+  trend: { month: string; label: string; amount: number }[]
 }
 
 export interface SetupInput {

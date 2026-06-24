@@ -6,6 +6,17 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 7 — Expense management
+- Migration `0005_expenses` (`expense_categories` with starter categories,
+  `vendors`, `expenses`).
+- Expense service: categories & vendors CRUD (delete guarded when referenced),
+  expense record/update/delete, filtered listing, and a summary (month total,
+  all-time, this-month by-category, 6-month trend).
+- Dashboard extended with month expenses and net (collection − expenses).
+- UI: **Expenses** screen (KPIs, top categories, filterable history, record
+  modal, manage-categories and manage-vendors modals). Expenses sidebar enabled.
+- Vitest expense tests (32 total passing).
+
 ### Phase 6 — Dashboard & due monitoring
 - Dashboard service: today/month collection, total outstanding, overdue student
   count + amount, upcoming-dues count, 6-month collection trend, recent payments.

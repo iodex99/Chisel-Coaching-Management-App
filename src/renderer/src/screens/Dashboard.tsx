@@ -18,9 +18,13 @@ export default function Dashboard(): JSX.Element {
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Today's collection" value={fmtMoney(data?.todayCollection)} />
-        <Kpi label="This month" value={fmtMoney(data?.monthCollection)} tone="text-green-600" />
-        <Kpi label="Total outstanding" value={fmtMoney(data?.totalOutstanding)} tone="text-accent-600" />
-        <Kpi label="Students with overdue" value={String(data?.overdueStudents ?? 0)} tone="text-accent-600" />
+        <Kpi label="Collected this month" value={fmtMoney(data?.monthCollection)} tone="text-green-600" />
+        <Kpi label="Expenses this month" value={fmtMoney(data?.monthExpenses)} tone="text-accent-600" />
+        <Kpi
+          label="Net this month"
+          value={fmtMoney(data?.monthNet)}
+          tone={(data?.monthNet ?? 0) < 0 ? 'text-accent-600' : 'text-brand-700'}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -40,6 +44,10 @@ export default function Dashboard(): JSX.Element {
         </div>
 
         <div className="space-y-4">
+          <div className="card p-5">
+            <div className="text-sm text-slate-500">Total outstanding</div>
+            <div className="mt-1 text-2xl font-semibold text-accent-600">{fmtMoney(data?.totalOutstanding)}</div>
+          </div>
           <button onClick={() => nav('/dues')} className="card flex w-full items-center gap-4 p-5 text-left hover:bg-slate-50">
             <AlertTriangle className="text-accent-500" />
             <div>

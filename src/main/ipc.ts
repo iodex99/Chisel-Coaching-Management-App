@@ -10,6 +10,7 @@ import * as settings from './services/settings'
 import * as payments from './services/payment'
 import * as receipts from './services/receipt'
 import * as dashboard from './services/dashboard'
+import * as expenses from './services/expense'
 import {
   setupSchema,
   loginSchema,
@@ -32,7 +33,14 @@ import {
   paymentFilterSchema,
   cancelPaymentSchema,
   paymentIdSchema,
-  upcomingSchema
+  upcomingSchema,
+  expenseCategoryInputSchema,
+  expenseCategoryUpdateSchema,
+  vendorInputSchema,
+  vendorUpdateSchema,
+  expenseInputSchema,
+  expenseUpdateSchema,
+  expenseFilterSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -146,4 +154,23 @@ export function registerIpc(): void {
   handleAuthed('dashboard:get', null, () => dashboard.getDashboard())
   handleAuthed('dues:overdue', null, () => dashboard.listOverdue())
   handleAuthed('dues:upcoming', upcomingSchema, (i) => dashboard.listUpcoming(i.days))
+
+  // Expense categories
+  handleAuthed('expenseCategories:list', null, () => expenses.listCategories())
+  handleAuthed('expenseCategories:create', expenseCategoryInputSchema, (i) => expenses.createCategory(i.name))
+  handleAuthed('expenseCategories:update', expenseCategoryUpdateSchema, (i) => expenses.updateCategory(i.id, i.input.name))
+  handleAuthed('expenseCategories:remove', idSchema, (i) => expenses.deleteCategory(i.id))
+
+  // Vendors
+  handleAuthed('vendors:list', null, () => expenses.listVendors())
+  handleAuthed('vendors:create', vendorInputSchema, (i) => expenses.createVendor(i))
+  handleAuthed('vendors:update', vendorUpdateSchema, (i) => expenses.updateVendor(i.id, i.input))
+  handleAuthed('vendors:remove', idSchema, (i) => expenses.deleteVendor(i.id))
+
+  // Expenses
+  handleAuthed('expenses:list', expenseFilterSchema, (i) => expenses.listExpenses(i))
+  handleAuthed('expenses:create', expenseInputSchema, (i) => expenses.createExpense(i, auth.currentUser()?.id ?? 1))
+  handleAuthed('expenses:update', expenseUpdateSchema, (i) => expenses.updateExpense(i.id, i.input))
+  handleAuthed('expenses:remove', idSchema, (i) => expenses.deleteExpense(i.id))
+  handleAuthed('expenses:summary', null, () => expenses.getExpenseSummary())
 }
