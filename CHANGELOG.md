@@ -4,6 +4,12 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.2]
+
+- First release built with the `UPDATE_READ_TOKEN` secret configured, so the
+  in-app "Check for updates" works against the private repo. No code changes
+  from 1.0.1.
+
 ## [1.0.1]
 
 ### Delivery & scale
