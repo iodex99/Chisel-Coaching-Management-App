@@ -89,4 +89,5 @@ build/                electron-builder build resources
 | Encrypted DB (sql.js + AES), migrations, auth, first-run setup | ✅ Phase 1 |
 | 2FA: TOTP, recovery codes, trusted devices; staged login | ✅ Phase 2 |
 | Students, batches, guardians, accounts (CRUD services + UI) | ✅ Phase 3 |
+| Fee plans, installments, outstanding/status, fees overview | ✅ Phase 4 |
 | Everything else | ⏳ see build plan |

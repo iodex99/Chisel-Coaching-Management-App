@@ -46,6 +46,12 @@ const api: ChiselApi = {
     update: (input) => ipcRenderer.invoke('students:update', input),
     remove: (input) => ipcRenderer.invoke('students:remove', input),
     nextAdmissionNo: () => ipcRenderer.invoke('students:nextAdmissionNo')
+  },
+  fees: {
+    getPlan: (input) => ipcRenderer.invoke('fees:getPlan', input),
+    savePlan: (input) => ipcRenderer.invoke('fees:savePlan', input),
+    deletePlan: (input) => ipcRenderer.invoke('fees:deletePlan', input),
+    summaries: () => ipcRenderer.invoke('fees:summaries')
   }
 }
 

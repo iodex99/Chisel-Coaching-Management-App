@@ -100,3 +100,26 @@ export const studentFilterSchema = z.object({
   batchId: z.number().int().positive().nullable().optional(),
   status: z.enum(['active', 'inactive', 'dropped', 'completed', 'all']).optional()
 })
+
+// --- Fees ---
+
+export const feeInstallmentInputSchema = z.object({
+  label: z.string().trim().max(60).optional(),
+  dueAmount: z.number().int().min(0),
+  dueDate: z.string().trim().max(10).optional()
+})
+
+export const feePlanInputSchema = z.object({
+  name: z.string().trim().min(1, 'Plan name is required').max(80),
+  totalAmount: z.number().int().min(0),
+  discount: z.number().int().min(0).default(0),
+  notes: z.string().trim().max(500).optional(),
+  installments: z.array(feeInstallmentInputSchema).min(1, 'Add at least one installment').max(60)
+})
+
+export const feePlanSaveSchema = z.object({
+  studentId: z.number().int().positive(),
+  input: feePlanInputSchema
+})
+
+export const studentIdSchema = z.object({ studentId: z.number().int().positive() })

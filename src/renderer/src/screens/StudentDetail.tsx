@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtDate } from '../lib/format'
+import { FeePlanPanel } from './FeePlan'
 
 function Row({ label, value }: { label: string; value?: string | null }): JSX.Element {
   return (
@@ -99,10 +100,8 @@ export default function StudentDetail(): JSX.Element {
         </section>
 
         <section className="card p-6 lg:col-span-2">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Fees & payments</h2>
-          <p className="text-sm text-slate-400">
-            Fee plan, installments, outstanding balance and payment history will appear here in the next module.
-          </p>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Fee plan</h2>
+          <FeePlanPanel studentId={studentId} />
         </section>
       </div>
     </div>

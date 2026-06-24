@@ -202,6 +202,60 @@ export interface StudentFilter {
   status?: StudentStatus | 'all'
 }
 
+// --- Fees ---
+
+export type InstallmentStatus = 'pending' | 'partial' | 'paid' | 'overdue'
+
+export interface FeeInstallmentView {
+  id: number
+  seqNo: number
+  label: string | null
+  dueAmount: number
+  dueDate: string | null
+  paid: number
+  outstanding: number
+  status: InstallmentStatus
+}
+
+export interface FeePlanView {
+  id: number
+  studentId: number
+  name: string
+  totalAmount: number
+  discount: number
+  netAmount: number
+  notes: string | null
+  installments: FeeInstallmentView[]
+  totals: { net: number; paid: number; outstanding: number }
+}
+
+export interface FeeInstallmentInput {
+  label?: string
+  dueAmount: number
+  dueDate?: string
+}
+
+export interface FeePlanInput {
+  name: string
+  totalAmount: number
+  discount: number
+  notes?: string
+  installments: FeeInstallmentInput[]
+}
+
+export interface StudentFeeSummary {
+  studentId: number
+  admissionNo: string
+  firstName: string
+  lastName: string | null
+  batchName: string | null
+  net: number
+  paid: number
+  outstanding: number
+  overdueCount: number
+  nextDueDate: string | null
+}
+
 export interface SetupInput {
   username: string
   password: string

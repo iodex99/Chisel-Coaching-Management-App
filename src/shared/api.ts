@@ -18,7 +18,10 @@ import type {
   StudentListItem,
   StudentDetail,
   StudentInput,
-  StudentFilter
+  StudentFilter,
+  FeePlanView,
+  FeePlanInput,
+  StudentFeeSummary
 } from './types'
 
 /**
@@ -73,5 +76,11 @@ export interface ChiselApi {
     update(input: { id: number; input: StudentInput }): Promise<StudentDetail>
     remove(input: { id: number }): Promise<void>
     nextAdmissionNo(): Promise<string>
+  }
+  fees: {
+    getPlan(input: { studentId: number }): Promise<FeePlanView | null>
+    savePlan(input: { studentId: number; input: FeePlanInput }): Promise<FeePlanView>
+    deletePlan(input: { studentId: number }): Promise<void>
+    summaries(): Promise<StudentFeeSummary[]>
   }
 }

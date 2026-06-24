@@ -5,6 +5,7 @@ import * as twoFactor from './services/twoFactor'
 import * as accounts from './services/account'
 import * as batches from './services/batch'
 import * as students from './services/student'
+import * as fees from './services/fee'
 import {
   setupSchema,
   loginSchema,
@@ -19,7 +20,9 @@ import {
   batchUpdateSchema,
   studentInputSchema,
   studentUpdateSchema,
-  studentFilterSchema
+  studentFilterSchema,
+  feePlanSaveSchema,
+  studentIdSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -108,4 +111,10 @@ export function registerIpc(): void {
   handleAuthed('students:update', studentUpdateSchema, (i) => students.updateStudent(i.id, i.input))
   handleAuthed('students:remove', idSchema, (i) => students.deleteStudent(i.id))
   handleAuthed('students:nextAdmissionNo', null, () => students.nextAdmissionNo())
+
+  // Fees
+  handleAuthed('fees:getPlan', studentIdSchema, (i) => fees.getFeePlan(i.studentId))
+  handleAuthed('fees:savePlan', feePlanSaveSchema, (i) => fees.saveFeePlan(i.studentId, i.input))
+  handleAuthed('fees:deletePlan', studentIdSchema, (i) => fees.deleteFeePlan(i.studentId))
+  handleAuthed('fees:summaries', null, () => fees.listFeeSummaries())
 }

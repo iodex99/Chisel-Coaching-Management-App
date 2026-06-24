@@ -6,6 +6,20 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 4 — Fee structure & outstanding tracking
+- Migration `0004_fees` (`fee_plans`, `fee_installments`, plus the `payments`
+  and `payment_allocations` tables that the payments phase will populate).
+- Fee service: one fee plan per student (total − discount = net), installment
+  schedule that must sum to net, derived per-installment status
+  (pending/partial/paid/overdue) and outstanding from non-cancelled payment
+  allocations; guard against restructuring a plan once payments exist.
+- Per-student fee summaries (net/paid/outstanding, overdue count, next due) for
+  the overview and later reports.
+- UI: fee-plan panel on the student page (installment table with status badges +
+  totals), a fee-plan editor with an "equal split" generator, and a **Fees**
+  overview screen with collection KPIs. Fees sidebar item enabled.
+- Vitest fee tests (23 total passing).
+
 ### Phase 3 — Core data: students, batches, guardians, accounts
 - Migration `0003_core` (`accounts`, `batches`, `students`, `guardians`);
   foreign keys enabled per connection for guardian cascade.
