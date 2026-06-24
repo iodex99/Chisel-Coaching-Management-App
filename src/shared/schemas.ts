@@ -168,3 +168,7 @@ export const cancelPaymentSchema = z.object({
 })
 
 export const paymentIdSchema = z.object({ paymentId: z.number().int().positive() })
+
+// --- Dues ---
+
+export const upcomingSchema = z.object({ days: z.number().int().min(1).max(365).default(30) })

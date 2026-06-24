@@ -91,4 +91,5 @@ build/                electron-builder build resources
 | Students, batches, guardians, accounts (CRUD services + UI) | ✅ Phase 3 |
 | Fee plans, installments, outstanding/status, fees overview | ✅ Phase 4 |
 | Payments, allocations, receipt numbering, PDF/print, history | ✅ Phase 5 |
+| Dashboard (KPIs + collection chart), due monitoring | ✅ Phase 6 |
 | Everything else | ⏳ see build plan |

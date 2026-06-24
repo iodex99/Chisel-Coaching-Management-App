@@ -6,6 +6,15 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 6 — Dashboard & due monitoring
+- Dashboard service: today/month collection, total outstanding, overdue student
+  count + amount, upcoming-dues count, 6-month collection trend, recent payments.
+- Due lists: overdue and upcoming (configurable window) installments with
+  outstanding, joined to students/batches.
+- UI: data-driven **Dashboard** (KPI cards, recharts collection bar chart,
+  overdue/upcoming quick cards, recent payments) and a **Due Monitoring** screen
+  (overdue + upcoming tables, window selector). Due Monitoring sidebar enabled.
+
 ### Phase 5 — Payments & receipts
 - Payment service: record a payment with allocations across installments,
   **atomic per-financial-year receipt numbering** (`PREFIX/FY/0001`), validation

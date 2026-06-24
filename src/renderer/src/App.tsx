@@ -15,6 +15,7 @@ import Batches from './screens/Batches'
 import Accounts from './screens/Accounts'
 import Fees from './screens/Fees'
 import Payments from './screens/Payments'
+import DueMonitoring from './screens/DueMonitoring'
 
 function Splash(): JSX.Element {
   return (
@@ -54,6 +55,7 @@ export default function App(): JSX.Element {
             <Route path="batches" element={<Batches />} />
             <Route path="fees" element={<Fees />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="dues" element={<DueMonitoring />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />

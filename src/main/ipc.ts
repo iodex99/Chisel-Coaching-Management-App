@@ -9,6 +9,7 @@ import * as fees from './services/fee'
 import * as settings from './services/settings'
 import * as payments from './services/payment'
 import * as receipts from './services/receipt'
+import * as dashboard from './services/dashboard'
 import {
   setupSchema,
   loginSchema,
@@ -30,7 +31,8 @@ import {
   paymentInputSchema,
   paymentFilterSchema,
   cancelPaymentSchema,
-  paymentIdSchema
+  paymentIdSchema,
+  upcomingSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -139,4 +141,9 @@ export function registerIpc(): void {
   // Receipts
   handleAuthed('receipts:exportPdf', paymentIdSchema, (i) => receipts.exportPdf(i.paymentId))
   handleAuthed('receipts:print', paymentIdSchema, (i) => receipts.printReceipt(i.paymentId))
+
+  // Dashboard & due monitoring
+  handleAuthed('dashboard:get', null, () => dashboard.getDashboard())
+  handleAuthed('dues:overdue', null, () => dashboard.listOverdue())
+  handleAuthed('dues:upcoming', upcomingSchema, (i) => dashboard.listUpcoming(i.days))
 }

@@ -26,7 +26,9 @@ import type {
   PaymentInput,
   PaymentRecord,
   PaymentListItem,
-  PaymentFilter
+  PaymentFilter,
+  DashboardData,
+  DueItem
 } from './types'
 
 /**
@@ -101,5 +103,12 @@ export interface ChiselApi {
   receipts: {
     exportPdf(input: { paymentId: number }): Promise<string>
     print(input: { paymentId: number }): Promise<void>
+  }
+  dashboard: {
+    get(): Promise<DashboardData>
+  }
+  dues: {
+    overdue(): Promise<DueItem[]>
+    upcoming(input: { days?: number }): Promise<DueItem[]>
   }
 }

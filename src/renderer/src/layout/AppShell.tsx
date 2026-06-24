@@ -31,7 +31,7 @@ const NAV: NavItem[] = [
   { to: '/batches', label: 'Batches', icon: GraduationCap, enabled: true },
   { to: '/fees', label: 'Fees', icon: Wallet, enabled: true },
   { to: '/payments', label: 'Payments', icon: Receipt, enabled: true },
-  { to: '/dues', label: 'Due Monitoring', icon: CalendarClock, enabled: false },
+  { to: '/dues', label: 'Due Monitoring', icon: CalendarClock, enabled: true },
   { to: '/expenses', label: 'Expenses', icon: TrendingDown, enabled: false },
   { to: '/accounts', label: 'Accounts', icon: Landmark, enabled: true },
   { to: '/reports', label: 'Reports', icon: BarChart3, enabled: false },

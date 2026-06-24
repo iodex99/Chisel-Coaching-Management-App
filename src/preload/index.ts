@@ -66,6 +66,13 @@ const api: ChiselApi = {
   receipts: {
     exportPdf: (input) => ipcRenderer.invoke('receipts:exportPdf', input),
     print: (input) => ipcRenderer.invoke('receipts:print', input)
+  },
+  dashboard: {
+    get: () => ipcRenderer.invoke('dashboard:get')
+  },
+  dues: {
+    overdue: () => ipcRenderer.invoke('dues:overdue'),
+    upcoming: (input) => ipcRenderer.invoke('dues:upcoming', input)
   }
 }
 

@@ -339,6 +339,32 @@ export interface ReceiptData {
   amountInWords: string
 }
 
+// --- Dashboard & due monitoring ---
+
+export interface DueItem {
+  studentId: number
+  studentName: string
+  admissionNo: string
+  batchName: string | null
+  installmentId: number
+  label: string | null
+  dueDate: string
+  dueAmount: number
+  paid: number
+  outstanding: number
+}
+
+export interface DashboardData {
+  todayCollection: number
+  monthCollection: number
+  totalOutstanding: number
+  overdueStudents: number
+  overdueAmount: number
+  upcomingCount: number
+  collectionTrend: { month: string; label: string; amount: number }[]
+  recentPayments: PaymentListItem[]
+}
+
 export interface SetupInput {
   username: string
   password: string
