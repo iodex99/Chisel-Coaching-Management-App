@@ -1,4 +1,16 @@
-import type { AuthState, SetupInput, LoginInput, ChangePasswordInput, User } from './types'
+import type {
+  AuthState,
+  SetupInput,
+  LoginInput,
+  ChangePasswordInput,
+  LoginResult,
+  User,
+  EnrollStart,
+  ConfirmEnrollInput,
+  VerifyTwoFactorInput,
+  TwoFactorAuthenticator,
+  TwoFactorStatus
+} from './types'
 
 /**
  * The typed surface exposed to the renderer as `window.api`.
@@ -15,9 +27,22 @@ export interface ChiselApi {
   }
   auth: {
     getState(): Promise<AuthState>
-    setup(input: SetupInput): Promise<User>
-    login(input: LoginInput): Promise<User>
+    setup(input: SetupInput): Promise<LoginResult>
+    login(input: LoginInput): Promise<LoginResult>
     logout(): Promise<void>
     changePassword(input: ChangePasswordInput): Promise<void>
+  }
+  twoFactor: {
+    /** Begin enrolling a new authenticator app — returns the secret + QR. */
+    beginEnroll(input: { label?: string }): Promise<EnrollStart>
+    /** Confirm enrollment by verifying a code from the authenticator. */
+    confirmEnroll(input: ConfirmEnrollInput): Promise<TwoFactorAuthenticator>
+    /** Verify a TOTP or recovery code during the 2FA login gate. */
+    verify(input: VerifyTwoFactorInput): Promise<User>
+    /** Generate (and replace) the set of one-time recovery codes. */
+    generateRecoveryCodes(): Promise<string[]>
+    status(): Promise<TwoFactorStatus>
+    removeAuthenticator(input: { id: number }): Promise<void>
+    removeTrustedDevice(input: { id: number }): Promise<void>
   }
 }

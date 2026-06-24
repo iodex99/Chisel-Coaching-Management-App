@@ -7,9 +7,10 @@ export interface Migration {
 }
 
 import { m0001_init } from './0001_init'
+import { m0002_two_factor } from './0002_two_factor'
 
 /** Ordered list of all migrations. Append new ones; never edit a shipped one. */
-export const MIGRATIONS: Migration[] = [m0001_init]
+export const MIGRATIONS: Migration[] = [m0001_init, m0002_two_factor]
 
 /**
  * Apply any migrations whose version is newer than the highest applied. Each

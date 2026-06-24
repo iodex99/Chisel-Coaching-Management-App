@@ -4,8 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { useAuth } from './store/auth'
 import { Logo } from './components/Logo'
-import Setup from './screens/Setup'
-import Login from './screens/Login'
+import AuthGate from './screens/auth/AuthGate'
 import AppShell from './layout/AppShell'
 import Dashboard from './screens/Dashboard'
 import Settings from './screens/Settings'
@@ -23,7 +22,6 @@ function Splash(): JSX.Element {
 
 export default function App(): JSX.Element {
   const loading = useAuth((s) => s.loading)
-  const state = useAuth((s) => s.state)
   const user = useAuth((s) => s.user)
   const refresh = useAuth((s) => s.refresh)
 
@@ -34,10 +32,8 @@ export default function App(): JSX.Element {
   let content: JSX.Element
   if (loading) {
     content = <Splash />
-  } else if (!state?.initialized) {
-    content = <Setup />
   } else if (!user) {
-    content = <Login />
+    content = <AuthGate />
   } else {
     content = (
       <HashRouter>

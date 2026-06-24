@@ -21,3 +21,24 @@ export const changePasswordSchema = z.object({
     .min(MIN_PASSWORD_LENGTH, `New password must be at least ${MIN_PASSWORD_LENGTH} characters`)
     .max(200)
 })
+
+// --- Two-factor authentication ---
+
+export const beginEnrollSchema = z.object({
+  label: z.string().trim().max(40).optional()
+})
+
+export const confirmEnrollSchema = z.object({
+  secret: z.string().min(8).max(128),
+  label: z.string().trim().max(40).optional().default('Authenticator'),
+  code: z.string().trim().min(6).max(10)
+})
+
+export const verifyTwoFactorSchema = z.object({
+  code: z.string().trim().min(6).max(20),
+  trustDevice: z.boolean().optional()
+})
+
+export const idSchema = z.object({
+  id: z.number().int().positive()
+})

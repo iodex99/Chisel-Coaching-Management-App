@@ -61,4 +61,4 @@ copied:
 |---|---|
 | Renderer isolation, CSP | ✅ Phase 0 |
 | Password-derived AES-256-GCM encryption, keyfile, lockout, change-password | ✅ Phase 1 |
-| TOTP, recovery codes, trusted devices | ⏳ Phase 2 |
+| TOTP (≤3 apps), recovery codes, machine-bound trusted devices (≤3) | ✅ Phase 2 |

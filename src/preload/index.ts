@@ -17,6 +17,15 @@ const api: ChiselApi = {
     login: (input) => ipcRenderer.invoke('auth:login', input),
     logout: () => ipcRenderer.invoke('auth:logout'),
     changePassword: (input) => ipcRenderer.invoke('auth:changePassword', input)
+  },
+  twoFactor: {
+    beginEnroll: (input) => ipcRenderer.invoke('twofactor:beginEnroll', input),
+    confirmEnroll: (input) => ipcRenderer.invoke('twofactor:confirmEnroll', input),
+    verify: (input) => ipcRenderer.invoke('twofactor:verify', input),
+    generateRecoveryCodes: () => ipcRenderer.invoke('twofactor:generateRecoveryCodes'),
+    status: () => ipcRenderer.invoke('twofactor:status'),
+    removeAuthenticator: (input) => ipcRenderer.invoke('twofactor:removeAuthenticator', input),
+    removeTrustedDevice: (input) => ipcRenderer.invoke('twofactor:removeTrustedDevice', input)
   }
 }
 

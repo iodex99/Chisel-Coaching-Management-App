@@ -87,4 +87,5 @@ build/                electron-builder build resources
 |---|---|
 | Scaffold, shell, branding, IPC bridge | ✅ Phase 0 |
 | Encrypted DB (sql.js + AES), migrations, auth, first-run setup | ✅ Phase 1 |
+| 2FA: TOTP, recovery codes, trusted devices; staged login | ✅ Phase 2 |
 | Everything else | ⏳ see build plan |

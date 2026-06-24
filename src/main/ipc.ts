@@ -1,7 +1,16 @@
 import { app, ipcMain } from 'electron'
 import type { ZodSchema } from 'zod'
 import * as auth from './services/auth'
-import { setupSchema, loginSchema, changePasswordSchema } from '@shared/schemas'
+import * as twoFactor from './services/twoFactor'
+import {
+  setupSchema,
+  loginSchema,
+  changePasswordSchema,
+  beginEnrollSchema,
+  confirmEnrollSchema,
+  verifyTwoFactorSchema,
+  idSchema
+} from '@shared/schemas'
 
 /**
  * Register an IPC handler. If a Zod schema is supplied, the incoming payload is
@@ -32,4 +41,33 @@ export function registerIpc(): void {
   handle('auth:login', loginSchema, (i) => auth.login(i))
   handle('auth:logout', null, () => auth.logout())
   handle('auth:changePassword', changePasswordSchema, (i) => auth.changePassword(i))
+
+  // Two-factor authentication
+  handle('twofactor:beginEnroll', beginEnrollSchema, (i) => {
+    const s = auth.requireStage('pending-enroll', 'authenticated')
+    return twoFactor.beginEnroll(i.label, s.user.username)
+  })
+  handle('twofactor:confirmEnroll', confirmEnrollSchema, (i) => {
+    auth.requireStage('pending-enroll', 'authenticated')
+    const result = twoFactor.confirmEnroll(i.secret, i.label ?? 'Authenticator', i.code)
+    auth.noteEnrollment()
+    return result
+  })
+  handle('twofactor:verify', verifyTwoFactorSchema, (i) => auth.verifyTwoFactor(i))
+  handle('twofactor:generateRecoveryCodes', null, () => {
+    auth.requireStage('authenticated')
+    return twoFactor.generateRecoveryCodes()
+  })
+  handle('twofactor:status', null, () => {
+    auth.requireStage('authenticated')
+    return twoFactor.status()
+  })
+  handle('twofactor:removeAuthenticator', idSchema, (i) => {
+    auth.requireStage('authenticated')
+    twoFactor.removeAuthenticator(i.id)
+  })
+  handle('twofactor:removeTrustedDevice', idSchema, (i) => {
+    auth.requireStage('authenticated')
+    twoFactor.removeTrustedDevice(i.id)
+  })
 }

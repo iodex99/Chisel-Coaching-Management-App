@@ -6,6 +6,22 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 2 — Two-factor authentication
+- TOTP 2FA with `otplib` + QR enrollment (`qrcode`); up to **3** authenticator
+  apps; verification tries each enrolled secret.
+- One-time **recovery codes** (10 per set, scrypt-hashed, single-use) with
+  copy/download UI.
+- **Machine-bound trusted devices** (up to 3): the trust secret lives in the OS
+  user-data folder (outside the portable `data/`), so copying the data folder to
+  another PC does not carry trust — verified by a "new machine" test.
+- Staged login model (`pending-enroll` → `pending-2fa` → `authenticated`); 2FA
+  is mandatory and enforced at the service layer.
+- First-run flow now: setup → enroll authenticator → save recovery codes → app.
+- Settings → Security: manage authenticators (add/remove, keep ≥1), regenerate
+  recovery codes, view/remove trusted devices.
+- Migration `0002_two_factor` (`two_factor`, `recovery_codes`, `trusted_devices`).
+- Vitest coverage extended to the full 2FA flow (15 tests passing).
+
 ### Phase 1 — Encrypted database & authentication
 - Database layer on `sql.js` (SQLite/WASM) with whole-file **AES-256-GCM**
   encryption; key derived from the master password via `scrypt`. Replaces the

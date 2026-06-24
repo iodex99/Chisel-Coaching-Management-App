@@ -3,6 +3,7 @@ import { KeyRound } from 'lucide-react'
 import { useAuth } from '../store/auth'
 import { api, errMessage } from '../lib/api'
 import { MIN_PASSWORD_LENGTH } from '@shared/schemas'
+import { SecuritySettings } from './SecuritySettings'
 
 export default function Settings(): JSX.Element {
   const user = useAuth((s) => s.user)
@@ -27,6 +28,9 @@ export default function Settings(): JSX.Element {
             <dd className="text-slate-800">{version || '—'}</dd>
           </dl>
         </section>
+
+        <h2 className="-mb-2 mt-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Security</h2>
+        <SecuritySettings />
 
         <ChangePasswordCard />
       </div>
