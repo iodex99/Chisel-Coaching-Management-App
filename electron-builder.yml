@@ -19,13 +19,23 @@ extraMetadata:
   main: out/main/index.js
 
 win:
-  # Portable distribution: an unpacked folder (zipped) so the whole app + ./data
-  # folder can be copied to a USB drive. Updates are handled by the in-app updater.
+  # A per-user NSIS installer (one .exe to deliver, no admin needed). It installs
+  # into a writable per-user folder, so the app keeps its data in ./data next to
+  # the executable — the folder stays copyable to a USB drive and the in-app
+  # updater can swap program files in place. electron-builder also leaves the raw
+  # win-unpacked folder behind, which CI zips for the updater to consume.
   target:
-    - target: dir
-    - target: zip
-  artifactName: chisel-${version}.${ext}
-  icon: resources/icon.ico
+    - nsis
 
-# We intentionally do NOT use NSIS — the app is portable and self-updating.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Chisel Coaching
+  artifactName: Chisel-Coaching-Setup-${version}.${ext}
+  deleteAppDataOnUninstall: false
+
+# The in-app updater handles updates; electron-builder does not publish.
 publish: null

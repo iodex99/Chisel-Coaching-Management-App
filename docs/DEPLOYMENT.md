@@ -1,9 +1,24 @@
 # Deployment, Portability & Backup
 
+## Delivery
+
+CI (`release.yml`) produces a single **installer** — `Chisel-Coaching-Setup-<version>.exe`
+— attached to the GitHub Release. Hand that one file to the client.
+
+- It is a **per-user** install (no administrator rights needed) and lets the
+  user pick the install folder.
+- The app keeps all its data in a `data/` sub-folder **next to the installed
+  executable** (a writable per-user location), so the whole folder remains
+  copyable to a USB drive, and the in-app updater can swap program files in place
+  while preserving `data/`.
+
+The release also includes `chisel-<version>.zip` (the raw program folder) +
+`latest.json`, which the in-app updater consumes — not needed for manual install.
+
 ## Portable folder model
 
-The build produces an **unpacked folder** (and a zip of it). The folder
-contains the executable plus a `data/` sub-folder:
+The installed folder (or the zip) contains the executable plus a `data/`
+sub-folder:
 
 ```
 Chisel Coaching/

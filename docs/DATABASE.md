@@ -19,9 +19,15 @@
 - **Key:** derived from the admin's master password via `scrypt`
   (N=32768, r=8, p=1). The key is never written to disk. See
   [SECURITY.md](SECURITY.md).
-- **Durability:** every committed write is persisted synchronously before the
-  call returns, so a crash cannot lose an acknowledged change. The dataset for a
-  coaching institute stays small (a few MB), so full-file persistence is fast.
+- **Performance at scale:** writes persist **asynchronously and coalesced** —
+  a transaction commits in memory and returns immediately, while the encrypt +
+  whole-file write happens off the hot path (and bursts collapse into one
+  write). So recording a payment never blocks the UI even as the database grows.
+  Synchronous flushes happen at safe points (open, change-password/rekey, close,
+  backup, and on app quit) so an acknowledged change is never lost on a graceful
+  exit. Reads always see the latest state (it is in memory).
+- **Large lists** (students, payments, expenses) are **paginated** at the query
+  level (LIMIT/OFFSET, 50/page) so the UI never fetches or renders huge tables.
 - **Money:** stored as integer **paise** (₹ × 100). Never floats.
 - **Dates:** stored as ISO-8601 strings (`YYYY-MM-DD`) or full timestamps.
 

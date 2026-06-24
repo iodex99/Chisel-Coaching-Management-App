@@ -172,12 +172,16 @@ export function listPayments(filter: PaymentFilter = {}): PaymentListItem[] {
     const q = `%${filter.search}%`
     params.push(q, q, q)
   }
-  const sql = `
+  let sql = `
     SELECT p.id, p.receipt_no, p.student_id, (s.first_name || ' ' || COALESCE(s.last_name, '')) AS student_name,
            p.payment_date, p.amount, p.mode, a.name AS account_name, p.is_cancelled
     FROM payments p JOIN students s ON s.id = p.student_id LEFT JOIN accounts a ON a.id = p.account_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY p.payment_date DESC, p.id DESC`
+  if (filter.limit) {
+    sql += ' LIMIT ? OFFSET ?'
+    params.push(Math.min(filter.limit, 500), filter.offset ?? 0)
+  }
   return getDb()
     .all<{
       id: number

@@ -200,6 +200,8 @@ export interface StudentFilter {
   search?: string
   batchId?: number | null
   status?: StudentStatus | 'all'
+  limit?: number
+  offset?: number
 }
 
 // --- Fees ---
@@ -331,6 +333,8 @@ export interface PaymentFilter {
   mode?: PaymentMode | 'all'
   search?: string
   includeCancelled?: boolean
+  limit?: number
+  offset?: number
 }
 
 export interface ReceiptData {
@@ -420,6 +424,8 @@ export interface ExpenseFilter {
   accountId?: number | null
   mode?: PaymentMode | 'all'
   search?: string
+  limit?: number
+  offset?: number
 }
 
 export interface ExpenseSummary {

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Ban } from 'lucide-react'
 import type { PaymentFilter, PaymentMode } from '@shared/types'
@@ -6,13 +7,17 @@ import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtDate, fmtMoney } from '../lib/format'
 import { ReceiptActions } from '../components/ReceiptActions'
+import { Pager, PAGE_SIZE } from '../components/Pager'
 
 const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value === m)?.label ?? m
 
 export function PaymentHistory({ filter, showStudent = true }: { filter: PaymentFilter; showStudent?: boolean }): JSX.Element {
+  const [page, setPage] = useState(0)
+  const filterKey = JSON.stringify(filter)
+  useEffect(() => setPage(0), [filterKey])
   const { data: payments = [], isLoading } = useQuery({
-    queryKey: ['payments', filter],
-    queryFn: () => api.payments.list(filter)
+    queryKey: ['payments', filterKey, page],
+    queryFn: () => api.payments.list({ ...filter, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
   })
 
   async function cancel(id: number): Promise<void> {
@@ -29,6 +34,7 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
   }
 
   return (
+    <>
     <div className="card overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -83,5 +89,7 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
         </tbody>
       </table>
     </div>
+    <Pager page={page} setPage={setPage} count={payments.length} />
+    </>
   )
 }

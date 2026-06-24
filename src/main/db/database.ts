@@ -1,7 +1,9 @@
 import initSqlJs, { type Database, type SqlJsStatic, type BindParams } from 'sql.js'
 import { readFileSync, existsSync, writeFileSync, renameSync, copyFileSync } from 'fs'
+import { writeFile, rename } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
+import log from 'electron-log/main'
 import { dataPath } from '../paths'
 import { encrypt, decrypt } from './crypto'
 import { runMigrations } from './migrations/runner'
@@ -78,13 +80,16 @@ export class Db {
     this.sqldb.exec(sql)
   }
 
-  /** Execute `fn` inside a transaction, then persist atomically. Rolls back on error. */
+  /** Execute `fn` inside a transaction, then persist. Rolls back on error.
+   *  Persistence is scheduled asynchronously and coalesced, so recording a
+   *  payment never blocks on the (whole-file) encrypt+write even as the
+   *  database grows. Reads always see the latest state (it's in memory). */
   transaction<T>(fn: (db: Db) => T): T {
     this.sqldb.run('BEGIN')
     try {
       const result = fn(this)
       this.sqldb.run('COMMIT')
-      this.persist()
+      this.schedulePersist()
       return result
     } catch (err) {
       try {
@@ -96,16 +101,51 @@ export class Db {
     }
   }
 
-  /** Encrypt and write the whole database to disk atomically (tmp + rename). */
+  // --- Persistence (async + coalesced, with synchronous flush points) ---
+  private dirty = false
+  private scheduled = false
+  private pending: Promise<void> = Promise.resolve()
+
+  private encryptCurrent(): Buffer {
+    return encrypt(Buffer.from(this.sqldb.export()), this.key)
+  }
+
+  /** Mark the DB changed and flush asynchronously, coalescing rapid writes. */
+  schedulePersist(): void {
+    this.dirty = true
+    if (this.scheduled) return
+    this.scheduled = true
+    setImmediate(() => {
+      this.scheduled = false
+      if (!this.dirty) return
+      this.dirty = false
+      const blob = this.encryptCurrent()
+      const tmp = `${dbFilePath()}.${Date.now()}.tmp`
+      this.pending = writeFile(tmp, blob)
+        .then(() => rename(tmp, dbFilePath()))
+        .catch((e) => {
+          this.dirty = true // retry on next change
+          log.error('Async persist failed:', e)
+        })
+    })
+  }
+
+  /** Synchronous, authoritative write of the current state. */
   persist(): void {
-    const bytes = Buffer.from(this.sqldb.export())
-    const blob = encrypt(bytes, this.key)
+    this.dirty = false
     const tmp = `${dbFilePath()}.tmp`
-    writeFileSync(tmp, blob)
+    writeFileSync(tmp, this.encryptCurrent())
     renameSync(tmp, dbFilePath())
   }
 
-  /** Re-encrypt the database under a new key (used by change-password). */
+  /** Await any in-flight async write, then synchronously flush if still dirty. */
+  async flush(): Promise<void> {
+    await this.pending
+    if (this.dirty) this.persist()
+  }
+
+  /** Re-encrypt under a new key. Callers must `await flush()` first so no
+   *  old-key write is still pending. */
   rekey(newKey: Buffer): void {
     this.key = newKey
     this.persist()
@@ -126,6 +166,16 @@ export function getDb(): Db {
 
 export function isOpen(): boolean {
   return current !== null
+}
+
+/** Await any pending async write, then flush the open DB to disk. */
+export async function flushCurrent(): Promise<void> {
+  if (current) await current.flush()
+}
+
+/** Synchronously flush the open DB to disk (used on app quit). */
+export function flushCurrentSync(): void {
+  if (current) current.persist()
 }
 
 export function dbFileExists(): boolean {

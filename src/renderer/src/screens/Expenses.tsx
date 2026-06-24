@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Tags, Truck, Search } from 'lucide-react'
 import type { ExpenseRecord, ExpenseInput, PaymentMode } from '@shared/types'
@@ -8,6 +8,7 @@ import { queryClient } from '../lib/queryClient'
 import { fmtDate, fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+import { Pager, PAGE_SIZE } from '../components/Pager'
 
 const todayStr = (): string => new Date().toISOString().slice(0, 10)
 const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value === m)?.label ?? m
@@ -22,13 +23,18 @@ export default function Expenses(): JSX.Element {
 
   const { data: summary } = useQuery({ queryKey: ['expense-summary'], queryFn: () => api.expenses.summary() })
   const { data: categories = [] } = useQuery({ queryKey: ['expense-categories'], queryFn: () => api.expenseCategories.list() })
+  const [page, setPage] = useState(0)
+  useEffect(() => setPage(0), [search, categoryId, dateFrom, dateTo])
   const filter = {
     search: search || undefined,
     categoryId: categoryId === '' ? undefined : categoryId,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined
   }
-  const { data: expenses = [] } = useQuery({ queryKey: ['expenses', filter], queryFn: () => api.expenses.list(filter) })
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses', filter, page],
+    queryFn: () => api.expenses.list({ ...filter, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+  })
 
   const refresh = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['expenses'] })
@@ -147,6 +153,7 @@ export default function Expenses(): JSX.Element {
           </tbody>
         </table>
       </div>
+      <Pager page={page} setPage={setPage} count={expenses.length} />
 
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Record expense' : 'Edit expense'} width="max-w-2xl">
         {editing !== null && (

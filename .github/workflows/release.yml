@@ -34,11 +34,10 @@ jobs:
           # Baked into the app so the in-app updater can read this private repo.
           UPDATE_READ_TOKEN: ${{ secrets.UPDATE_READ_TOKEN }}
 
-      - name: Package (portable unpacked folder)
-        run: npx electron-builder --win --dir
+      - name: Build installer (.exe) + unpacked folder
+        run: npx electron-builder --win
 
-      - name: Zip + manifest
-        id: pkg
+      - name: Zip unpacked (for the in-app updater) + manifest
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
@@ -52,6 +51,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            release/Chisel-Coaching-Setup-*.exe
             chisel-*.zip
             latest.json
           fail_on_unmatched_files: true

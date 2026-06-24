@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import type { StudentStatus } from '@shared/types'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
+import { Pager, PAGE_SIZE } from '../components/Pager'
 
 const STATUS_BADGE: Record<StudentStatus, string> = {
   active: 'bg-green-100 text-green-700',
@@ -19,14 +20,19 @@ export default function Students(): JSX.Element {
   const [batchId, setBatchId] = useState<number | ''>('')
   const [status, setStatus] = useState<StudentStatus | 'all'>('active')
 
+  const [page, setPage] = useState(0)
+  useEffect(() => setPage(0), [search, batchId, status])
+
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students', search, batchId, status],
+    queryKey: ['students', search, batchId, status, page],
     queryFn: () =>
       api.students.list({
         search: search || undefined,
         batchId: batchId === '' ? undefined : batchId,
-        status
+        status,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE
       })
   })
 
@@ -115,6 +121,7 @@ export default function Students(): JSX.Element {
           </tbody>
         </table>
       </div>
+      <Pager page={page} setPage={setPage} count={students.length} />
     </div>
   )
 }

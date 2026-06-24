@@ -227,6 +227,8 @@ export async function changePassword(input: ChangePasswordInput): Promise<void> 
   const currentKey = deriveKey(input.currentPassword, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
   if (!currentKey.equals(s.key)) throw new Error('Current password is incorrect')
 
+  // Ensure any pending async write (old key) is flushed before we snapshot + rekey.
+  await getDb().flush()
   backupDbFile('pre-rekey')
 
   const newSalt = generateSalt()

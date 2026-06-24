@@ -32,7 +32,7 @@ afterAll(() => {
 describe('backup & restore', () => {
   it('creates a backup, then restore rolls back to that snapshot', async () => {
     students.createStudent({ admissionNo: 'B-1', firstName: 'Before', status: 'active', guardians: [] })
-    const snapshot = backup.createBackup('manual')
+    const snapshot = await backup.createBackup('manual')
     expect(backup.listBackups().some((b) => b.name === snapshot.name)).toBe(true)
 
     // Change data after the snapshot.
@@ -40,7 +40,7 @@ describe('backup & restore', () => {
     expect(students.listStudents().length).toBe(2)
 
     // Restore drops the live session; re-login to read the restored DB.
-    backup.restoreBackup(snapshot.name)
+    await backup.restoreBackup(snapshot.name)
     expect(auth.getAuthState().authenticated).toBe(false)
 
     await auth.login({ password: 'password123' })

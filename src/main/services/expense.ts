@@ -161,7 +161,11 @@ export function listExpenses(filter: ExpenseFilter = {}): ExpenseRecord[] {
     const q = `%${filter.search}%`
     params.push(q, q, q)
   }
-  const sql = `${SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY e.expense_date DESC, e.id DESC`
+  let sql = `${SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY e.expense_date DESC, e.id DESC`
+  if (filter.limit) {
+    sql += ' LIMIT ? OFFSET ?'
+    params.push(Math.min(filter.limit, 500), filter.offset ?? 0)
+  }
   return getDb().all<ExpenseRow>(sql, params).map(map)
 }
 

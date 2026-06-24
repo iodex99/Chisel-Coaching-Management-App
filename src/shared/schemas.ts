@@ -95,10 +95,16 @@ export const studentInputSchema = z.object({
 })
 export const studentUpdateSchema = z.object({ id: z.number().int().positive(), input: studentInputSchema })
 
+const pageFields = {
+  limit: z.number().int().min(1).max(500).optional(),
+  offset: z.number().int().min(0).optional()
+}
+
 export const studentFilterSchema = z.object({
   search: z.string().trim().max(80).optional(),
   batchId: z.number().int().positive().nullable().optional(),
-  status: z.enum(['active', 'inactive', 'dropped', 'completed', 'all']).optional()
+  status: z.enum(['active', 'inactive', 'dropped', 'completed', 'all']).optional(),
+  ...pageFields
 })
 
 // --- Fees ---
@@ -159,7 +165,8 @@ export const paymentFilterSchema = z.object({
   dateTo: z.string().trim().max(10).optional(),
   mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
   search: z.string().trim().max(80).optional(),
-  includeCancelled: z.boolean().optional()
+  includeCancelled: z.boolean().optional(),
+  ...pageFields
 })
 
 export const cancelPaymentSchema = z.object({
@@ -207,7 +214,8 @@ export const expenseFilterSchema = z.object({
   vendorId: z.number().int().positive().nullable().optional(),
   accountId: z.number().int().positive().nullable().optional(),
   mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
-  search: z.string().trim().max(80).optional()
+  search: z.string().trim().max(80).optional(),
+  ...pageFields
 })
 
 // --- Reports ---

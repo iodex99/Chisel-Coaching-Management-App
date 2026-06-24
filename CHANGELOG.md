@@ -4,6 +4,20 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.1]
+
+### Delivery & scale
+- **Installer:** the Windows build is now a single per-user **NSIS installer**
+  (`Chisel-Coaching-Setup-<version>.exe`) — no admin rights, choose-your-folder,
+  desktop/Start-menu shortcuts. Data still lives in `data/` next to the exe, so
+  the folder stays portable and the in-app updater keeps working. CI publishes
+  the installer + the updater's zip/manifest on each release.
+- **Non-blocking saves:** database persistence is now asynchronous and coalesced
+  (with synchronous flushes at open/rekey/close/backup/quit), so recording a
+  payment never blocks the UI as the database grows over the years.
+- **Paginated lists:** students, payments and expenses are paged (50/row) at the
+  query level so the UI never fetches or renders huge tables.
+
 ## [1.0.0]
 
 First complete release: Student Fee Management and Expense Management modules,

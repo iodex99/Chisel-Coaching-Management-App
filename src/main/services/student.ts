@@ -65,11 +65,15 @@ export function listStudents(filter: StudentFilter = {}): StudentListItem[] {
     const q = `%${filter.search}%`
     params.push(q, q, q, q)
   }
-  const sql = `
+  let sql = `
     SELECT s.id, s.admission_no, s.first_name, s.last_name, s.phone, s.status, s.batch_id, b.name AS batch_name
     FROM students s LEFT JOIN batches b ON b.id = s.batch_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY s.first_name, s.last_name`
+  if (filter.limit) {
+    sql += ' LIMIT ? OFFSET ?'
+    params.push(Math.min(filter.limit, 500), filter.offset ?? 0)
+  }
   return getDb()
     .all<StudentRow & { batch_name: string | null }>(sql, params)
     .map((r) => ({
