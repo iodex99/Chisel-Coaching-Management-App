@@ -95,4 +95,5 @@ build/                electron-builder build resources
 | Expenses: categories, vendors, records, expense dashboard | ✅ Phase 7 |
 | Reports & analytics (10 reports) + CSV/PDF export | ✅ Phase 8 |
 | Settings: institute profile, security, backup/restore | ✅ Phase 9 |
-| Auto-updater + GitHub Actions release, packaging, E2E | ⏳ Phases 10–11 |
+| Auto-updater (GitHub Releases) + CI/release workflows | ✅ Phase 10 |
+| Packaging, Playwright E2E, v1.0.0 release | ⏳ Phase 11 |

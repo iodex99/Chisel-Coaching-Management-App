@@ -11,6 +11,10 @@ export default defineConfig({
         '@main': resolve(__dirname, 'src/main')
       }
     },
+    // Bake the (read-only) update token from CI into the build. Empty in dev.
+    define: {
+      __UPDATE_TOKEN__: JSON.stringify(process.env.UPDATE_READ_TOKEN || '')
+    },
     build: {
       rollupOptions: {
         input: { index: resolve(__dirname, 'src/main/index.ts') }

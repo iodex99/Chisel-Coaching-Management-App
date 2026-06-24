@@ -13,6 +13,7 @@ import * as dashboard from './services/dashboard'
 import * as expenses from './services/expense'
 import * as reports from './services/report'
 import * as backup from './services/backup'
+import * as updater from './services/update'
 import {
   setupSchema,
   loginSchema,
@@ -190,4 +191,8 @@ export function registerIpc(): void {
   handleAuthed('backups:restore', backupNameSchema, (i) => backup.restoreBackup(i.name))
   handleAuthed('backups:getAuto', null, () => backup.getAutoBackup())
   handleAuthed('backups:setAuto', autoBackupSchema, (i) => backup.setAutoBackup(i.enabled))
+
+  // Updates
+  handleAuthed('update:check', null, () => updater.checkForUpdate())
+  handleAuthed('update:install', null, () => updater.downloadAndInstall())
 }

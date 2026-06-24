@@ -6,6 +6,18 @@ project uses semantic versioning.
 
 ## [Unreleased]
 
+### Phase 10 — Auto-update & CI/CD
+- In-app updater (`update.ts`): checks the private repo's latest GitHub Release,
+  compares versions (semver), downloads + SHA-256-verifies the package, extracts
+  it, and spawns a detached PowerShell helper that swaps the program files
+  (preserving `data/`) and relaunches — with progress events to the UI.
+- Read-only update token baked at build time via electron-vite `define`
+  (`UPDATE_READ_TOKEN` CI secret); dev builds report "release builds only".
+- GitHub Actions: `ci.yml` (typecheck + tests on push/PR) and `release.yml`
+  (tag `v*` → build → zip + `latest.json` → GitHub Release).
+- UI: "Update available" banner and **Settings → Updates** (check + install with
+  live status).
+
 ### Phase 9 — Settings: backup & restore
 - Backup service: each backup is a folder containing both the encrypted database
   **and** its key file, so restores survive later password changes.

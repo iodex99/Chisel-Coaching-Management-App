@@ -429,6 +429,22 @@ export interface ExpenseSummary {
   trend: { month: string; label: string; amount: number }[]
 }
 
+// --- Updates ---
+
+export interface UpdateInfo {
+  current: string
+  latest: string | null
+  available: boolean
+  notes: string
+  error?: string
+}
+
+export interface UpdateStatus {
+  state: 'checking' | 'downloading' | 'verifying' | 'extracting' | 'installing' | 'ready' | 'error'
+  percent?: number
+  message?: string
+}
+
 // --- Backups ---
 
 export interface BackupInfo {

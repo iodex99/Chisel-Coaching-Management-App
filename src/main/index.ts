@@ -4,6 +4,7 @@ import log from 'electron-log/main'
 import { ensureDataDirs, dataPath } from './paths'
 import { registerIpc } from './ipc'
 import { autoBackupOnExit } from './services/backup'
+import { setStatusWindow } from './services/update'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -66,6 +67,7 @@ if (!gotLock) {
     registerIpc()
     log.info(`Chisel Coaching v${app.getVersion()} started`)
     createWindow()
+    setStatusWindow(() => mainWindow)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

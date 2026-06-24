@@ -37,7 +37,9 @@ import type {
   ExpenseSummary,
   ReportType,
   ReportResult,
-  BackupInfo
+  BackupInfo,
+  UpdateInfo,
+  UpdateStatus
 } from './types'
 
 /**
@@ -150,5 +152,11 @@ export interface ChiselApi {
     restore(input: { name: string }): Promise<void>
     getAuto(): Promise<boolean>
     setAuto(input: { enabled: boolean }): Promise<void>
+  }
+  update: {
+    check(): Promise<UpdateInfo>
+    install(): Promise<void>
+    /** Subscribe to install progress; returns an unsubscribe function. */
+    onStatus(cb: (status: UpdateStatus) => void): () => void
   }
 }

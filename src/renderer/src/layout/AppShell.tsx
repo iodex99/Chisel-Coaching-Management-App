@@ -14,6 +14,7 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import { Logo } from '../components/Logo'
+import { UpdateBanner } from '../components/UpdateBanner'
 import { useAuth } from '../store/auth'
 
 interface NavItem {
@@ -94,6 +95,7 @@ export default function AppShell(): JSX.Element {
       </aside>
 
       <main className="flex-1 overflow-auto bg-slate-50">
+        <UpdateBanner />
         <Outlet />
       </main>
     </div>

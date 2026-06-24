@@ -66,4 +66,25 @@ create GitHub Release (tag = version) and upload chisel-<version>.zip + latest.j
 
 ## Status
 
-⏳ Implemented in Phase 10.
+✅ Implemented in Phase 10.
+
+- In-app updater: `src/main/services/update.ts` (`checkForUpdate`,
+  `downloadAndInstall`) with progress events on the `update:status` channel.
+- Token baked at build time via electron-vite `define` (`__UPDATE_TOKEN__` ←
+  `UPDATE_READ_TOKEN`); empty in dev, where the updater reports "release builds
+  only".
+- Swap helper: a generated `data/updates/swap.ps1` waits for the app PID to
+  exit, copies the staged files over the program folder (skipping `data/`), and
+  relaunches the exe.
+- CI: `.github/workflows/ci.yml` (typecheck + tests on push/PR) and
+  `release.yml` (tag `v*` → build → zip `win-unpacked` + `latest.json` →
+  GitHub Release).
+- UI: an "Update available" banner (`UpdateBanner`) and **Settings → Updates**
+  (`UpdateSettings`).
+
+### Required one-time setup (maintainer)
+
+1. Create a fine-grained PAT with **Contents: Read** on this repo only; add it as
+   the repo Actions secret `UPDATE_READ_TOKEN`.
+2. To release: bump `version` in `package.json`, commit, then
+   `git tag vX.Y.Z && git push --tags`.

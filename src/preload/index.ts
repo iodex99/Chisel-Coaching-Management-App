@@ -1,5 +1,6 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { ChiselApi } from '@shared/api'
+import type { UpdateStatus } from '@shared/types'
 
 /**
  * The concrete implementation of the `window.api` contract. Each method is a
@@ -104,6 +105,15 @@ const api: ChiselApi = {
     restore: (input) => ipcRenderer.invoke('backups:restore', input),
     getAuto: () => ipcRenderer.invoke('backups:getAuto'),
     setAuto: (input) => ipcRenderer.invoke('backups:setAuto', input)
+  },
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onStatus: (cb) => {
+      const handler = (_e: IpcRendererEvent, data: UpdateStatus): void => cb(data)
+      ipcRenderer.on('update:status', handler)
+      return () => ipcRenderer.removeListener('update:status', handler)
+    }
   }
 }
 
