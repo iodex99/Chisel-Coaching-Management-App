@@ -35,6 +35,7 @@ import type {
   ExpenseRecord,
   ExpenseFilter,
   ExpenseSummary,
+  VendorLimitInfo,
   ReportType,
   ReportResult,
   BackupInfo,
@@ -146,6 +147,7 @@ export interface ChiselApi {
     update(input: { id: number; input: ExpenseInput }): Promise<ExpenseRecord>
     remove(input: { id: number }): Promise<void>
     summary(): Promise<ExpenseSummary>
+    vendorLimitInfo(input: { accountId: number; vendorId: number; date: string; excludeId?: number }): Promise<VendorLimitInfo>
   }
   reports: {
     get(input: { type: ReportType; from?: string; to?: string }): Promise<ReportResult>

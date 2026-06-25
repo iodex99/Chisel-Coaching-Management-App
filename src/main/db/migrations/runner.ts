@@ -11,9 +11,17 @@ import { m0002_two_factor } from './0002_two_factor'
 import { m0003_core } from './0003_core'
 import { m0004_fees } from './0004_fees'
 import { m0005_expenses } from './0005_expenses'
+import { m0006_account_limits } from './0006_account_limits'
 
 /** Ordered list of all migrations. Append new ones; never edit a shipped one. */
-export const MIGRATIONS: Migration[] = [m0001_init, m0002_two_factor, m0003_core, m0004_fees, m0005_expenses]
+export const MIGRATIONS: Migration[] = [
+  m0001_init,
+  m0002_two_factor,
+  m0003_core,
+  m0004_fees,
+  m0005_expenses,
+  m0006_account_limits
+]
 
 /**
  * Apply any migrations whose version is newer than the highest applied. Each

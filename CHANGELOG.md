@@ -4,6 +4,18 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.5]
+
+### Added
+- **Per-vendor spending limit on accounts.** When adding/editing an account you
+  can set a *max payable to any single vendor per financial year (Apr–Mar)*
+  (0 = no limit). When recording an expense paid from that account to a vendor,
+  the form shows how much has already gone to that vendor this FY and the
+  **remaining headroom**, **warns** when you're close, and **blocks** (with a
+  clear message) if the entry would exceed it. Enforced in the service so it
+  can't be bypassed; the accounts list shows each account's limit.
+  Migration `0006_account_limits`.
+
 ## [1.0.4]
 
 ### Fixed

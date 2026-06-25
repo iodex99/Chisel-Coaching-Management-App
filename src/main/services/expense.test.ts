@@ -12,6 +12,7 @@ vi.mock('electron-log/main', () => ({
 
 import * as auth from './auth'
 import * as expense from './expense'
+import * as accounts from './account'
 import { ensureDataDirs } from '../paths'
 
 let dataDir: string
@@ -64,5 +65,34 @@ describe('expenses', () => {
     expect(updated.amount).toBe(35000)
     expense.deleteExpense(e.id)
     expect(expense.listExpenses().length).toBe(1)
+  })
+
+  it('enforces the per-vendor FY limit on the paying account', () => {
+    const acct = accounts.createAccount({ name: 'Capped', type: 'bank', openingBalance: 0, isActive: true, vendorFyLimit: 100000 })
+    const v = expense.createVendor({ name: 'LimitVendor' })
+    const cat = expense.listCategories()[0]
+    const base = { categoryId: cat.id, vendorId: v.id, accountId: acct.id, mode: 'bank_transfer' as const }
+
+    expense.createExpense({ ...base, expenseDate: '2026-05-01', amount: 60000 })
+    const info = expense.vendorLimitInfo(acct.id, v.id, '2026-06-01')
+    expect(info.limit).toBe(100000)
+    expect(info.spent).toBe(60000)
+    expect(info.remaining).toBe(40000)
+
+    // Exceeding the remaining ₹400 is blocked.
+    expect(() => expense.createExpense({ ...base, expenseDate: '2026-06-01', amount: 50000 })).toThrow(/exceeds the per-vendor limit/)
+
+    // Exactly filling the remaining is allowed.
+    expense.createExpense({ ...base, expenseDate: '2026-06-01', amount: 40000 })
+    expect(expense.vendorLimitInfo(acct.id, v.id, '2026-06-01').remaining).toBe(0)
+
+    // The next financial year starts fresh.
+    expect(expense.vendorLimitInfo(acct.id, v.id, '2027-05-01').spent).toBe(0)
+
+    // An account with no limit (0) is never capped.
+    const free = accounts.createAccount({ name: 'Free', type: 'cash', openingBalance: 0, isActive: true, vendorFyLimit: 0 })
+    expect(() =>
+      expense.createExpense({ categoryId: cat.id, vendorId: v.id, accountId: free.id, mode: 'cash', expenseDate: '2026-06-01', amount: 9_999_999 })
+    ).not.toThrow()
   })
 })

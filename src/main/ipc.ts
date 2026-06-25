@@ -47,6 +47,7 @@ import {
   expenseInputSchema,
   expenseUpdateSchema,
   expenseFilterSchema,
+  vendorLimitInfoSchema,
   reportRequestSchema,
   backupNameSchema,
   autoBackupSchema
@@ -185,6 +186,9 @@ export function registerIpc(): void {
   handleAuthed('expenses:update', expenseUpdateSchema, (i) => expenses.updateExpense(i.id, i.input))
   handleAuthed('expenses:remove', idSchema, (i) => expenses.deleteExpense(i.id))
   handleAuthed('expenses:summary', null, () => expenses.getExpenseSummary())
+  handleAuthed('expenses:vendorLimitInfo', vendorLimitInfoSchema, (i) =>
+    expenses.vendorLimitInfo(i.accountId, i.vendorId, i.date, i.excludeId)
+  )
 
   // Reports
   handleAuthed('reports:get', reportRequestSchema, (i) => reports.getReport(i.type, { from: i.from, to: i.to }))

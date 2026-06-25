@@ -53,6 +53,7 @@ export default function Accounts(): JSX.Element {
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3 text-right">Opening balance</th>
+              <th className="px-4 py-3 text-right">Vendor limit / FY</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3" />
             </tr>
@@ -60,14 +61,14 @@ export default function Accounts(): JSX.Element {
           <tbody className="divide-y divide-slate-100">
             {isLoading && (
               <tr>
-                <td className="px-4 py-6 text-slate-400" colSpan={5}>
+                <td className="px-4 py-6 text-slate-400" colSpan={6}>
                   Loading…
                 </td>
               </tr>
             )}
             {!isLoading && accounts.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-slate-400" colSpan={5}>
+                <td className="px-4 py-6 text-slate-400" colSpan={6}>
                   No accounts yet. Create one to start recording payments.
                 </td>
               </tr>
@@ -77,6 +78,9 @@ export default function Accounts(): JSX.Element {
                 <td className="px-4 py-3 font-medium text-slate-700">{a.name}</td>
                 <td className="px-4 py-3 uppercase text-slate-500">{a.type}</td>
                 <td className="px-4 py-3 text-right">{fmtMoney(a.openingBalance)}</td>
+                <td className="px-4 py-3 text-right text-slate-500">
+                  {a.vendorFyLimit > 0 ? fmtMoney(a.vendorFyLimit) : '—'}
+                </td>
                 <td className="px-4 py-3">
                   {a.isActive ? (
                     <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">Active</span>
@@ -132,6 +136,7 @@ function AccountForm({
   const [opening, setOpening] = useState(paiseToRupees(account?.openingBalance ?? 0))
   const [isActive, setIsActive] = useState(account?.isActive ?? true)
   const [notes, setNotes] = useState(account?.notes ?? '')
+  const [vendorLimit, setVendorLimit] = useState(paiseToRupees(account?.vendorFyLimit ?? 0))
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -144,7 +149,8 @@ function AccountForm({
       type,
       openingBalance: rupeesToPaise(opening),
       isActive,
-      notes: notes.trim() || undefined
+      notes: notes.trim() || undefined,
+      vendorFyLimit: rupeesToPaise(vendorLimit)
     }
     try {
       if (account) await api.accounts.update({ id: account.id, input })
@@ -181,6 +187,14 @@ function AccountForm({
       <div>
         <label className="label">Notes</label>
         <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </div>
+      <div>
+        <label className="label">Per-vendor limit per financial year (₹)</label>
+        <input className="input" type="number" min="0" step="0.01" value={vendorLimit} onChange={(e) => setVendorLimit(e.target.value)} />
+        <p className="mt-1 text-xs text-slate-400">
+          Caps how much can be paid to any single vendor from this account within a financial year (Apr–Mar). 0 = no
+          limit.
+        </p>
       </div>
       <label className="flex items-center gap-2 text-sm text-slate-600">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Active

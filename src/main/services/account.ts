@@ -10,6 +10,7 @@ interface AccountRow {
   opening_balance: number
   is_active: number
   notes: string | null
+  vendor_fy_limit: number
   created_at: string
   updated_at: string
 }
@@ -22,6 +23,7 @@ function map(r: AccountRow): Account {
     openingBalance: r.opening_balance,
     isActive: !!r.is_active,
     notes: r.notes,
+    vendorFyLimit: r.vendor_fy_limit ?? 0,
     createdAt: r.created_at,
     updatedAt: r.updated_at
   }
@@ -43,8 +45,17 @@ export function createAccount(input: AccountInput): Account {
   const ts = now()
   const id = getDb().transaction((d) =>
     d.run(
-      'INSERT INTO accounts (name, type, opening_balance, is_active, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [input.name, input.type, input.openingBalance, input.isActive ? 1 : 0, input.notes ?? null, ts, ts]
+      'INSERT INTO accounts (name, type, opening_balance, is_active, notes, vendor_fy_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        input.name,
+        input.type,
+        input.openingBalance,
+        input.isActive ? 1 : 0,
+        input.notes ?? null,
+        input.vendorFyLimit ?? 0,
+        ts,
+        ts
+      ]
     ).lastInsertRowid
   )
   return getAccount(id) as Account
@@ -53,8 +64,17 @@ export function createAccount(input: AccountInput): Account {
 export function updateAccount(id: number, input: AccountInput): Account {
   getDb().transaction((d) =>
     d.run(
-      'UPDATE accounts SET name = ?, type = ?, opening_balance = ?, is_active = ?, notes = ?, updated_at = ? WHERE id = ?',
-      [input.name, input.type, input.openingBalance, input.isActive ? 1 : 0, input.notes ?? null, now(), id]
+      'UPDATE accounts SET name = ?, type = ?, opening_balance = ?, is_active = ?, notes = ?, vendor_fy_limit = ?, updated_at = ? WHERE id = ?',
+      [
+        input.name,
+        input.type,
+        input.openingBalance,
+        input.isActive ? 1 : 0,
+        input.notes ?? null,
+        input.vendorFyLimit ?? 0,
+        now(),
+        id
+      ]
     )
   )
   return getAccount(id) as Account

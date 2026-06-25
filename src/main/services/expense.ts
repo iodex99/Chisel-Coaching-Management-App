@@ -1,14 +1,49 @@
 import { getDb } from '../db/database'
+import { financialYear, financialYearRange } from './fy'
 import type {
   ExpenseCategory,
   Vendor,
   ExpenseInput,
   ExpenseRecord,
   ExpenseFilter,
-  ExpenseSummary
+  ExpenseSummary,
+  VendorLimitInfo
 } from '@shared/types'
 
 const now = (): string => new Date().toISOString()
+const rs = (paise: number): string => '₹' + (paise / 100).toLocaleString('en-IN')
+
+/** How much has been paid to a vendor from an account in the FY of `dateISO`,
+ * and the headroom remaining against the account's per-vendor FY limit. */
+export function vendorLimitInfo(
+  accountId: number,
+  vendorId: number,
+  dateISO: string,
+  excludeExpenseId?: number
+): VendorLimitInfo {
+  const limit = getDb().get<{ vendor_fy_limit: number }>('SELECT vendor_fy_limit FROM accounts WHERE id = ?', [accountId])?.vendor_fy_limit ?? 0
+  const { start, end } = financialYearRange(dateISO)
+  const params: (string | number)[] = [accountId, vendorId, start, end]
+  let sql =
+    'SELECT COALESCE(SUM(amount), 0) AS s FROM expenses WHERE account_id = ? AND vendor_id = ? AND expense_date >= ? AND expense_date <= ?'
+  if (excludeExpenseId) {
+    sql += ' AND id != ?'
+    params.push(excludeExpenseId)
+  }
+  const spent = getDb().get<{ s: number }>(sql, params)?.s ?? 0
+  return { limit, spent, remaining: limit > 0 ? Math.max(0, limit - spent) : 0, fy: financialYear(dateISO) }
+}
+
+/** Block an expense that would push a vendor over the account's FY limit. */
+function enforceVendorLimit(input: ExpenseInput, excludeExpenseId?: number): void {
+  if (!input.accountId || !input.vendorId) return
+  const info = vendorLimitInfo(input.accountId, input.vendorId, input.expenseDate, excludeExpenseId)
+  if (info.limit > 0 && info.spent + input.amount > info.limit) {
+    throw new Error(
+      `This exceeds the per-vendor limit for FY ${info.fy}. Limit ${rs(info.limit)}, already paid ${rs(info.spent)}, remaining ${rs(info.remaining)}.`
+    )
+  }
+}
 
 // --- Categories ---
 
@@ -171,6 +206,7 @@ export function listExpenses(filter: ExpenseFilter = {}): ExpenseRecord[] {
 
 export function createExpense(input: ExpenseInput, userId = 1): ExpenseRecord {
   if (input.amount <= 0) throw new Error('Amount must be greater than zero')
+  enforceVendorLimit(input)
   const ts = now()
   const id = getDb().transaction((d) => {
     const eid = d.run(
@@ -203,6 +239,7 @@ export function createExpense(input: ExpenseInput, userId = 1): ExpenseRecord {
 }
 
 export function updateExpense(id: number, input: ExpenseInput): ExpenseRecord {
+  enforceVendorLimit(input, id)
   getDb().transaction((d) =>
     d.run(
       `UPDATE expenses SET expense_date = ?, category_id = ?, vendor_id = ?, payee = ?, amount = ?, mode = ?, account_id = ?, reference_no = ?, remarks = ?

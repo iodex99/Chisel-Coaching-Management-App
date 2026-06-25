@@ -53,7 +53,7 @@
 | `batches` | course / batch definitions |
 | `students` | student master + admission records |
 | `guardians` | parent / guardian details per student |
-| `accounts` | cash / bank / UPI accounts (money in & out) |
+| `accounts` | cash / bank / UPI accounts (money in & out); incl. per-vendor FY spend limit |
 | `fee_plans` | per-student fee structure |
 | `fee_installments` | installment schedule with due dates |
 | `payments` | fee payments received (with unique receipt no) |

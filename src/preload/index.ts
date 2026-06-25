@@ -95,7 +95,8 @@ const api: ChiselApi = {
     create: (input) => ipcRenderer.invoke('expenses:create', input),
     update: (input) => ipcRenderer.invoke('expenses:update', input),
     remove: (input) => ipcRenderer.invoke('expenses:remove', input),
-    summary: () => ipcRenderer.invoke('expenses:summary')
+    summary: () => ipcRenderer.invoke('expenses:summary'),
+    vendorLimitInfo: (input) => ipcRenderer.invoke('expenses:vendorLimitInfo', input)
   },
   reports: {
     get: (input) => ipcRenderer.invoke('reports:get', input),

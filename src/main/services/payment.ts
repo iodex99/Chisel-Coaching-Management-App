@@ -1,6 +1,7 @@
 import { getDb, type Db } from '../db/database'
 import { getInstituteProfile } from './settings'
 import { rupeesInWords } from './money'
+import { financialYear } from './fy'
 import type {
   PaymentInput,
   PaymentRecord,
@@ -11,13 +12,6 @@ import type {
 } from '@shared/types'
 
 const now = (): string => new Date().toISOString()
-
-/** Indian financial year label (Apr–Mar) for a YYYY-MM-DD date. */
-function financialYear(dateISO: string): string {
-  const [yy, mm] = dateISO.split('-').map(Number)
-  const startYear = mm >= 4 ? yy : yy - 1
-  return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
-}
 
 /** Allocate the next receipt number atomically inside a transaction. */
 function nextReceiptNo(d: Db, dateISO: string): string {

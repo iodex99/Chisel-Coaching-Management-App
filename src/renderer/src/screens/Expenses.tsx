@@ -204,6 +204,24 @@ function ExpenseForm({ expense, onSaved, onCancel }: { expense: ExpenseRecord | 
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const { data: limitInfo } = useQuery({
+    queryKey: ['vendor-limit', accountId, vendorId, date, expense?.id],
+    queryFn: () =>
+      api.expenses.vendorLimitInfo({
+        accountId: accountId as number,
+        vendorId: vendorId as number,
+        date,
+        excludeId: expense?.id
+      }),
+    enabled: accountId !== '' && vendorId !== '' && !!date
+  })
+
+  const amtPaise = rupeesToPaise(amount || '0')
+  const hasLimit = !!limitInfo && limitInfo.limit > 0
+  const wouldExceed = hasLimit && limitInfo!.spent + amtPaise > limitInfo!.limit
+  const remainingAfter = hasLimit ? limitInfo!.limit - limitInfo!.spent - amtPaise : 0
+  const nearLimit = hasLimit && !wouldExceed && remainingAfter < limitInfo!.limit * 0.1
+
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     setError('')
@@ -296,12 +314,25 @@ function ExpenseForm({ expense, onSaved, onCancel }: { expense: ExpenseRecord | 
         <label className="label">Remarks</label>
         <input className="input" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
       </div>
+      {hasLimit && (
+        <div
+          className={`col-span-2 rounded-md p-2 text-xs ${
+            wouldExceed ? 'bg-accent-50 text-accent-700' : nearLimit ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-600'
+          }`}
+        >
+          Vendor limit (FY {limitInfo!.fy}): paid {fmtMoney(limitInfo!.spent)} of {fmtMoney(limitInfo!.limit)} ·
+          remaining {fmtMoney(limitInfo!.remaining)}.
+          {wouldExceed && ` This exceeds the limit by ${fmtMoney(limitInfo!.spent + amtPaise - limitInfo!.limit)}.`}
+          {nearLimit && ` Only ${fmtMoney(Math.max(0, remainingAfter))} would remain.`}
+        </div>
+      )}
+
       {error && <p className="col-span-2 text-sm text-accent-600">{error}</p>}
       <div className="col-span-2 flex justify-end gap-2">
         <button type="button" className="btn-outline" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="btn-primary" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy || wouldExceed}>
           {busy ? 'Saving…' : 'Save'}
         </button>
       </div>

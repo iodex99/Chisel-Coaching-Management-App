@@ -54,7 +54,8 @@ export const accountInputSchema = z.object({
   type: z.enum(['cash', 'bank', 'upi', 'other']),
   openingBalance: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
-  notes: z.string().trim().max(500).optional()
+  notes: z.string().trim().max(500).optional(),
+  vendorFyLimit: z.number().int().min(0).default(0)
 })
 export const accountUpdateSchema = z.object({ id: z.number().int().positive(), input: accountInputSchema })
 
@@ -210,6 +211,13 @@ export const expenseInputSchema = z.object({
   remarks: z.string().trim().max(300).optional()
 })
 export const expenseUpdateSchema = z.object({ id: z.number().int().positive(), input: expenseInputSchema })
+
+export const vendorLimitInfoSchema = z.object({
+  accountId: z.number().int().positive(),
+  vendorId: z.number().int().positive(),
+  date: z.string().trim().min(1).max(10),
+  excludeId: z.number().int().positive().optional()
+})
 
 export const expenseFilterSchema = z.object({
   dateFrom: z.string().trim().max(10).optional(),

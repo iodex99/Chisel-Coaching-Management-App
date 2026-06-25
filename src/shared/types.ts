@@ -80,6 +80,8 @@ export interface Account {
   openingBalance: number // paise
   isActive: boolean
   notes: string | null
+  /** Max payable to a single vendor from this account per financial year (paise); 0 = no limit. */
+  vendorFyLimit: number
   createdAt: string
   updatedAt: string
 }
@@ -90,6 +92,14 @@ export interface AccountInput {
   openingBalance: number
   isActive: boolean
   notes?: string
+  vendorFyLimit?: number
+}
+
+export interface VendorLimitInfo {
+  limit: number
+  spent: number
+  remaining: number
+  fy: string
 }
 
 // --- Batches ---
