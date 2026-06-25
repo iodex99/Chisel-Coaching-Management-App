@@ -76,9 +76,17 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   await page.getByRole('link', { name: 'Batches' }).click()
   await expect(page.getByText('E2E Batch')).toBeVisible()
 
-  // --- The manual "New fee plan" entry point exists, with a student search ---
+  // --- Load sample data from Settings (auto-accept the confirm dialog) ---
+  page.on('dialog', (d) => void d.accept())
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Load sample data' }).click()
+  await expect(page.getByText(/Loaded sample data/)).toBeVisible({ timeout: 20000 })
+
+  // --- Fees now shows seeded plans, and "New fee plan" search finds students ---
   await page.getByRole('link', { name: 'Fees' }).click()
+  await expect(page.getByText('Aarav Sharma')).toBeVisible()
   await page.getByRole('button', { name: 'New fee plan' }).click()
-  await expect(page.getByText('Search for a student, then build their fee structure.')).toBeVisible()
   await expect(page.getByPlaceholder(/Search by name, admission no/)).toBeVisible()
+  await page.getByPlaceholder(/Search by name, admission no/).fill('Aarav')
+  await expect(page.getByRole('button', { name: /Aarav Sharma/ })).toBeVisible()
 })

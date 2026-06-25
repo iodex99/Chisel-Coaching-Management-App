@@ -4,6 +4,20 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.13]
+
+### Added
+- **“Load sample data” (Settings → Sample data)** for demos and training. One
+  click fills the app with a realistic, varied dataset that exercises every
+  screen: 5 courses/batches with base fees, 14 students across batches and
+  statuses (active / inactive / completed) with guardians, fee plans covering
+  fully-paid, partial, overdue and no-plan cases, payments in every mode
+  (cash / UPI / bank / cheque / other) including an advance and a cancelled one,
+  and expenses across categories, vendors and accounts — including one near an
+  account’s per-vendor FY limit. Sample records are tagged “(Sample)”, a
+  **“pre-demo” backup is taken first** so you can restore your earlier state, and
+  it refuses to load twice.
+
 ## [1.0.12]
 
 ### Added / Changed

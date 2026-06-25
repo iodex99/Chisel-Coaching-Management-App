@@ -125,6 +125,9 @@ const api: ChiselApi = {
     importStudents: (bytes) => ipcRenderer.invoke('bulk:importStudents', bytes),
     feeTemplate: () => ipcRenderer.invoke('bulk:feeTemplate'),
     importFees: (bytes) => ipcRenderer.invoke('bulk:importFees', bytes)
+  },
+  demo: {
+    seedSample: () => ipcRenderer.invoke('demo:seed')
   }
 }
 

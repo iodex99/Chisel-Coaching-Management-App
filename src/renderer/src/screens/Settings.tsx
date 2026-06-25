@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { KeyRound, Building2 } from 'lucide-react'
+import { KeyRound, Building2, Sparkles } from 'lucide-react'
 import type { InstituteProfile } from '@shared/types'
 import { useAuth } from '../store/auth'
 import { api, errMessage } from '../lib/api'
@@ -38,6 +38,8 @@ export default function Settings(): JSX.Element {
 
         <BackupSettings />
 
+        <SampleDataCard />
+
         <UpdateSettings />
 
         <h2 className="-mb-2 mt-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Security</h2>
@@ -46,6 +48,51 @@ export default function Settings(): JSX.Element {
         <ChangePasswordCard />
       </div>
     </div>
+  )
+}
+
+function SampleDataCard(): JSX.Element {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  async function load(): Promise<void> {
+    if (
+      !window.confirm(
+        'Load a set of sample students, batches, fee plans, payments and expenses for a demo?\n\nA backup of your current data is taken first, so you can restore it from Data & Backup afterwards.'
+      )
+    )
+      return
+    setBusy(true)
+    setErr('')
+    setMsg('')
+    try {
+      const res = await api.demo.seedSample()
+      setMsg(res.message)
+      await queryClient.invalidateQueries()
+    } catch (e) {
+      setErr(errMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="card p-6">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <Sparkles size={16} /> Sample data
+      </h2>
+      <p className="mt-2 text-sm text-slate-500">
+        Fill the app with realistic demo records across every screen (students, batches, fee plans, payments and
+        expenses) to explore or demonstrate the app. Your current data is backed up first — restore the “pre-demo”
+        backup above to undo.
+      </p>
+      {msg && <p className="mt-3 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</p>}
+      {err && <p className="mt-3 text-sm text-accent-600">{err}</p>}
+      <button className="btn-outline mt-3" onClick={() => void load()} disabled={busy}>
+        {busy ? 'Loading…' : 'Load sample data'}
+      </button>
+    </section>
   )
 }
 

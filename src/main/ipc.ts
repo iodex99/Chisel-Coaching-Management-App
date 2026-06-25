@@ -16,6 +16,7 @@ import * as reports from './services/report'
 import * as backup from './services/backup'
 import * as updater from './services/update'
 import * as importer from './services/import'
+import * as demo from './services/demo'
 import {
   setupSchema,
   loginSchema,
@@ -212,4 +213,7 @@ export function registerIpc(): void {
   handleAuthed('bulk:importStudents', null, (raw) => importer.importStudents(Buffer.from(raw as Uint8Array)))
   handleAuthed('bulk:feeTemplate', null, () => importer.generateFeeTemplate())
   handleAuthed('bulk:importFees', null, (raw) => importer.importFees(Buffer.from(raw as Uint8Array)))
+
+  // Demo / sample data
+  handleAuthed('demo:seed', null, () => demo.seedDemoData())
 }

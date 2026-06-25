@@ -175,4 +175,8 @@ export interface ChiselApi {
     feeTemplate(): Promise<string>
     importFees(bytes: Uint8Array): Promise<ImportResult>
   }
+  demo: {
+    /** Seed a full set of realistic sample records (for demos / training). */
+    seedSample(): Promise<{ added: boolean; message: string }>
+  }
 }
