@@ -15,7 +15,9 @@ non-technical: check → "Update available" → one click → done & relaunched.
 3. **Download & verify** — fetch the release assets `chisel-<version>.zip` and
    `latest.json` (`{ version, url, sha256, notes, pubDate }`) into
    `data/updates/`, then verify the SHA-256.
-4. **Swap & relaunch** — extract to `data/updates/staging/`, spawn a detached
+4. **Swap & relaunch** — extract to `data/updates/staging/` (with
+   `process.noAsar` set so Electron doesn't intercept the new `app.asar` and
+   reject it as an "Invalid package"), spawn a detached
    PowerShell **swap script** that waits for the app to exit, replaces the
    program files (everything **except** the `data/` folder), then launches the
    new executable. The app calls `app.quit()`.

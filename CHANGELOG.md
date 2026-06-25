@@ -4,6 +4,17 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.4]
+
+### Fixed
+- **Auto-update install failed** with `Invalid package … app.asar`. Electron's
+  `fs` treats any path containing `.asar` as an archive, so extracting the new
+  `app.asar` into the staging folder was intercepted and rejected. The updater
+  now disables that interception (`process.noAsar`) around extraction.
+  > Note: because the broken updater code lives in the *installed* build, the
+  > in-app update from 1.0.2/1.0.3 cannot self-heal — install 1.0.4 manually
+  > once (download the Setup .exe). In-app updates work from 1.0.4 onward.
+
 ## [1.0.3]
 
 ### Added

@@ -129,7 +129,16 @@ export async function downloadAndInstall(): Promise<void> {
   writeFileSync(zipPath, zipBuf)
 
   emit({ state: 'extracting' })
-  await extract(zipPath, { dir: staging })
+  // Electron's fs is patched to treat any path containing ".asar" as an archive,
+  // which makes extracting the new app.asar fail with "Invalid package". Disable
+  // that interception just for the extraction, then restore it.
+  const proc = process as NodeJS.Process & { noAsar?: boolean }
+  proc.noAsar = true
+  try {
+    await extract(zipPath, { dir: staging })
+  } finally {
+    proc.noAsar = false
+  }
 
   emit({ state: 'installing' })
   const appDir = dirname(app.getPath('exe'))
