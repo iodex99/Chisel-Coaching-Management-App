@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Plus } from 'lucide-react'
+import { Upload, Plus, Search } from 'lucide-react'
 import { api } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { PageHeader } from '../components/PageHeader'
@@ -110,10 +110,11 @@ export default function Fees(): JSX.Element {
   )
 }
 
-/** Pick a student, then build (or update) their fee structure with the same
- *  editor used on the student detail page. */
+/** Pick a student (with search), then build (or update) their fee structure with
+ *  the same editor used on the student detail page. */
 function NewFeePlan({ onDone }: { onDone: () => void }): JSX.Element {
   const [studentId, setStudentId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
   const { data: students = [] } = useQuery({
     queryKey: ['students', 'fee-picker'],
     queryFn: () => api.students.list({ status: 'all' })
@@ -124,24 +125,55 @@ function NewFeePlan({ onDone }: { onDone: () => void }): JSX.Element {
     enabled: studentId != null
   })
 
+  const selected = students.find((s) => s.id === studentId)
+
   if (studentId == null) {
+    const q = search.trim().toLowerCase()
+    const matches = q
+      ? students.filter(
+          (s) =>
+            s.admissionNo.toLowerCase().includes(q) ||
+            `${s.firstName} ${s.lastName ?? ''}`.toLowerCase().includes(q) ||
+            (s.phone ?? '').includes(q)
+        )
+      : students
     return (
       <div className="space-y-3">
-        <p className="text-sm text-slate-500">Choose a student, then build their fee structure.</p>
-        <div>
-          <label className="label">Student</label>
-          <select className="input" defaultValue="" onChange={(e) => setStudentId(Number(e.target.value) || null)}>
-            <option value="" disabled>
-              Select a student…
-            </option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.admissionNo} — {s.firstName} {s.lastName ?? ''}
-              </option>
-            ))}
-          </select>
+        <p className="text-sm text-slate-500">Search for a student, then build their fee structure.</p>
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input pl-9"
+            autoFocus
+            placeholder="Search by name, admission no or phone…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-        {students.length === 0 && <p className="text-sm text-slate-400">No students yet — add a student first.</p>}
+        <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
+          {matches.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-400">
+              {students.length === 0 ? 'No students yet — add a student first.' : 'No students match your search.'}
+            </p>
+          ) : (
+            matches.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-slate-50"
+                onClick={() => setStudentId(s.id)}
+              >
+                <span className="font-medium text-slate-700">
+                  {s.firstName} {s.lastName ?? ''}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {s.admissionNo}
+                  {s.batchName ? ` · ${s.batchName}` : ''}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
       </div>
     )
   }
@@ -153,12 +185,21 @@ function NewFeePlan({ onDone }: { onDone: () => void }): JSX.Element {
       <button type="button" className="text-sm text-brand-600 hover:underline" onClick={() => setStudentId(null)}>
         ← Choose a different student
       </button>
+      <p className="text-sm text-slate-500">
+        Fee plan for <span className="font-medium text-slate-700">{selected?.firstName} {selected?.lastName ?? ''}</span>
+      </p>
       {plan && (
         <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
           This student already has a fee plan — saving will update it.
         </p>
       )}
-      <FeePlanEditor studentId={studentId} plan={plan ?? null} onSaved={onDone} onCancel={onDone} />
+      <FeePlanEditor
+        studentId={studentId}
+        plan={plan ?? null}
+        defaultBatchId={selected?.batchId ?? null}
+        onSaved={onDone}
+        onCancel={onDone}
+      />
     </div>
   )
 }

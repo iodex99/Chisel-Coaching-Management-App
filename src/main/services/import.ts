@@ -111,15 +111,30 @@ function buildStudentsTemplate(): ExcelJS.Workbook {
 function buildFeesTemplate(): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Fees')
+  const lists = wb.addWorksheet('Lists')
+  lists.state = 'veryHidden'
+
+  // Course / Batch options come from the current batches (dynamic — regenerate
+  // the template after adding/removing a batch and the list updates).
+  const batchLabels = listBatches().map((b) => (b.courseName ? `${b.courseName} — ${b.name}` : b.name))
+  batchLabels.forEach((label, i) => (lists.getCell(`A${i + 1}`).value = label))
+
+  // Columns A..F. Pick a Course/Batch (B) to pull its base fee; Total Fee (C) is
+  // optional and overrides the batch fee when filled.
   ws.columns = [
-    { header: 'Admission No', width: 14 },
-    { header: 'Plan Name', width: 18 },
-    { header: 'Total Fee', width: 12 },
-    { header: 'Discount', width: 12 },
-    { header: 'Installments', width: 14 },
-    { header: 'First Due Date (DD-MM-YYYY)', width: 26 }
+    { header: 'Admission No', width: 14 }, // A
+    { header: 'Course / Batch', width: 26 }, // B (dropdown)
+    { header: 'Total Fee (optional)', width: 18 }, // C
+    { header: 'Discount', width: 12 }, // D
+    { header: 'Installments', width: 14 }, // E
+    { header: 'First Due Date (DD-MM-YYYY)', width: 26 } // F
   ]
   ws.getRow(1).font = { bold: true }
+
+  const lastBatch = Math.max(batchLabels.length, 1)
+  for (let r = 2; r <= 500; r++) {
+    ws.getCell(`B${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: [`Lists!$A$1:$A$${lastBatch}`] }
+  }
   return wb
 }
 
@@ -247,14 +262,23 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
   const h = headerIndex(ws)
   const c = {
     adm: findCol(h, ['admissionno', 'admissionnumber']),
+    batch: findCol(h, ['coursebatch', 'batch', 'course'], 'course'),
     plan: findCol(h, ['planname', 'plan']),
     total: findCol(h, ['totalfee', 'total', 'amount']),
     discount: findCol(h, ['discount']),
     installments: findCol(h, ['installments', 'noofinstallments']),
     firstDue: findCol(h, ['firstduedate'], 'firstdue')
   }
-  if (!c.adm || !c.total) {
-    throw new Error('Could not find the "Admission No" and "Total Fee" columns. Use the provided template.')
+  if (!c.adm) {
+    throw new Error('Could not find the "Admission No" column. Use the provided template.')
+  }
+
+  // Base fee per course/batch (in paise), looked up by the dropdown label or the
+  // plain batch name, so a row can pull its fee from the batch instead of typing it.
+  const batchFee = new Map<string, number>()
+  for (const b of listBatches()) {
+    batchFee.set(b.name.toLowerCase(), b.defaultFee)
+    if (b.courseName) batchFee.set(`${b.courseName} — ${b.name}`.toLowerCase(), b.defaultFee)
   }
 
   const result: ImportResult = { imported: 0, errors: [] }
@@ -272,15 +296,23 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
 
     const totalRupees = cellNumber(row, c.total)
     const discountRupees = cellNumber(row, c.discount)
-    if (totalRupees <= 0) {
-      result.errors.push({ row: r, message: 'Total Fee must be greater than zero' })
-      continue
-    }
     if (discountRupees < 0) {
       result.errors.push({ row: r, message: 'Discount cannot be negative' })
       continue
     }
-    const total = toPaise(totalRupees)
+    // Total Fee (if given) overrides; otherwise pull the base fee from the chosen course/batch.
+    let total: number
+    if (totalRupees > 0) {
+      total = toPaise(totalRupees)
+    } else {
+      const batchLabel = cellText(row, c.batch)
+      const fee = batchLabel ? batchFee.get(batchLabel.toLowerCase()) : undefined
+      if (!fee || fee <= 0) {
+        result.errors.push({ row: r, message: 'Enter a Total Fee or pick a Course / Batch that has a base fee' })
+        continue
+      }
+      total = fee // batch defaultFee is already in paise
+    }
     const discount = toPaise(discountRupees)
     const net = total - discount
     if (net <= 0) {

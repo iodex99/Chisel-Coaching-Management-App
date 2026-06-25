@@ -106,7 +106,7 @@ export default function StudentDetail(): JSX.Element {
 
         <section className="card p-6 lg:col-span-2">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Fee plan</h2>
-          <FeePlanPanel studentId={studentId} />
+          <FeePlanPanel studentId={studentId} defaultBatchId={student.batchId} />
         </section>
 
         <section className="lg:col-span-2">

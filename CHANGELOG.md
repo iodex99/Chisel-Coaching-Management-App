@@ -4,6 +4,20 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.12]
+
+### Added / Changed
+- **Batches now feed fee plans.** In the fee editor (and “New fee plan”), pick a
+  **Course / Batch** and the base fee auto-fills from that batch’s default fee;
+  you then just set the discount. When a student already has a batch it’s
+  preselected and the fee pre-fills automatically.
+- **Fees Excel template has a dynamic Course/Batch dropdown.** Leave **Total Fee**
+  blank to use the batch’s base fee, or fill it to override. The dropdown lists
+  your current batches (regenerate the template after adding/removing a batch and
+  it updates), so there are no spelling mistakes.
+- **“New fee plan” student picker is now a search box** — filter by name,
+  admission number or phone instead of scrolling a dropdown.
+
 ## [1.0.11]
 
 ### Added

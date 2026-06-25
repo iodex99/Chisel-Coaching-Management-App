@@ -18,6 +18,7 @@ import * as fees from './fee'
 import * as payments from './payment'
 import * as expense from './expense'
 import * as accounts from './account'
+import * as batch from './batch'
 import * as importer from './import'
 import { financialYear, financialYearRange } from './fy'
 import { ensureDataDirs } from '../paths'
@@ -168,6 +169,19 @@ describe('import robustness', () => {
     expect(negative.errors[0].message).toMatch(/Discount/)
     const badDate = await importer.importFees(await feeSheet([['FD-2', 'P', 1000, 0, 1, 'garbage']]))
     expect(badDate.errors[0].message).toMatch(/First Due Date/)
+  })
+  it('pulls the base fee from the course/batch when Total Fee is blank', async () => {
+    const b = batch.createBatch({ name: 'NEET-FD', courseName: 'NEET', defaultFee: 5000000, status: 'active' })
+    const s = students.createStudent({ admissionNo: 'FD-3', firstName: 'M', lastName: 'E', gender: 'male', status: 'active', batchId: b.id, guardians: [] })
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Fees')
+    ws.addRow(['Admission No', 'Course / Batch', 'Total Fee (optional)', 'Discount', 'Installments', 'First Due Date (DD-MM-YYYY)'])
+    ws.addRow(['FD-3', 'NEET-FD', '', 1000, 1, '01-04-2026']) // blank total → use batch base fee ₹50,000
+    const res = await importer.importFees(Buffer.from(await wb.xlsx.writeBuffer()))
+    expect(res.imported).toBe(1)
+    const plan = fees.getFeePlan(s.id)!
+    expect(plan.totalAmount).toBe(5000000)
+    expect(plan.netAmount).toBe(4900000) // 50,000 base − 1,000 discount
   })
 })
 

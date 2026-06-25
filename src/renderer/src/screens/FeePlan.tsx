@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Trash2, Wand2 } from 'lucide-react'
 import type { FeePlanView, FeePlanInput, InstallmentStatus } from '@shared/types'
@@ -15,7 +15,7 @@ const STATUS_BADGE: Record<InstallmentStatus, string> = {
   overdue: 'bg-accent-100 text-accent-700'
 }
 
-export function FeePlanPanel({ studentId }: { studentId: number }): JSX.Element {
+export function FeePlanPanel({ studentId, defaultBatchId }: { studentId: number; defaultBatchId?: number | null }): JSX.Element {
   const { data: plan, isLoading } = useQuery({
     queryKey: ['fee-plan', studentId],
     queryFn: () => api.fees.getPlan({ studentId })
@@ -106,6 +106,7 @@ export function FeePlanPanel({ studentId }: { studentId: number }): JSX.Element 
           <FeePlanEditor
             studentId={studentId}
             plan={plan ?? null}
+            defaultBatchId={defaultBatchId}
             onSaved={() => {
               setEditing(false)
               refresh()
@@ -127,17 +128,43 @@ interface Row {
 export function FeePlanEditor({
   studentId,
   plan,
+  defaultBatchId,
   onSaved,
   onCancel
 }: {
   studentId: number
   plan: FeePlanView | null
+  defaultBatchId?: number | null
   onSaved: () => void
   onCancel: () => void
 }): JSX.Element {
+  const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
   const [name, setName] = useState(plan?.name ?? 'Course fee')
+  const [batchId, setBatchId] = useState<number | null>(plan ? null : defaultBatchId ?? null)
   const [total, setTotal] = useState(paiseToRupees(plan?.totalAmount ?? 0))
   const [discount, setDiscount] = useState(paiseToRupees(plan?.discount ?? 0))
+  const prefilled = useRef(false)
+
+  // For a NEW plan with a preselected batch (the student's batch), fill the base
+  // fee once the batch list has loaded.
+  useEffect(() => {
+    if (plan || prefilled.current || batchId == null || batches.length === 0) return
+    const b = batches.find((x) => x.id === batchId)
+    if (b) {
+      prefilled.current = true
+      setTotal(paiseToRupees(b.defaultFee))
+      if (b.name) setName(`${b.courseName ? b.courseName + ' — ' : ''}${b.name} fee`)
+    }
+  }, [batches, batchId, plan])
+
+  function onBatchChange(id: number | null): void {
+    setBatchId(id)
+    const b = batches.find((x) => x.id === id)
+    if (b) {
+      setTotal(paiseToRupees(b.defaultFee))
+      setName(`${b.courseName ? b.courseName + ' — ' : ''}${b.name} fee`)
+    }
+  }
   const [notes, setNotes] = useState(plan?.notes ?? '')
   const [rows, setRows] = useState<Row[]>(
     plan
@@ -205,6 +232,18 @@ export function FeePlanEditor({
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
+        <div className="col-span-3">
+          <label className="label">Course / Batch (fills the base fee)</label>
+          <select className="input" value={batchId ?? ''} onChange={(e) => onBatchChange(Number(e.target.value) || null)}>
+            <option value="">— Select a course / batch —</option>
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.courseName ? `${b.courseName} — ` : ''}
+                {b.name} ({fmtMoney(b.defaultFee)})
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="col-span-3">
           <label className="label">Plan name</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />

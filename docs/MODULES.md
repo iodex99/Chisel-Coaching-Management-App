@@ -12,7 +12,9 @@
   dropdowns for batch/gender/status and per-row validation.
 
 ### Fee structure
-- Per-student fee plan with total, discount and net.
+- Per-student fee plan with total, discount and net. The total can be pulled
+  from the student's **course/batch base fee** (set on the batch) — pick the
+  batch in the fee editor or the Excel template and the fee fills automatically.
 - Installment-wise planning with due dates.
 - Outstanding tracking and payment-status monitoring (pending / partial / paid /
   overdue, derived from allocations).
