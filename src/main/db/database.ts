@@ -1,5 +1,5 @@
 import initSqlJs, { type Database, type SqlJsStatic, type BindParams } from 'sql.js'
-import { readFileSync, existsSync, writeFileSync, renameSync, copyFileSync } from 'fs'
+import { readFileSync, existsSync, writeFileSync, renameSync, copyFileSync, mkdirSync } from 'fs'
 import { writeFile, rename } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
@@ -138,10 +138,18 @@ export class Db {
     renameSync(tmp, dbFilePath())
   }
 
-  /** Await any in-flight async write, then synchronously flush if still dirty. */
+  /** Make the on-disk file authoritative for the current in-memory state.
+   *  A coalesced `schedulePersist` can fire *during* the await below — clearing
+   *  `dirty` and reassigning `this.pending` to a new in-flight write. So after
+   *  draining the write we were aware of, we persist synchronously regardless of
+   *  `dirty` (cheap and infrequent — only at backup/rekey/restore/quit), then
+   *  await once more so any write that started mid-flush has finished its rename
+   *  before a caller copies the file. */
   async flush(): Promise<void> {
     await this.pending
-    if (this.dirty) this.persist()
+    this.dirty = false
+    this.persist()
+    await this.pending
   }
 
   /** Re-encrypt under a new key. Callers must `await flush()` first so no
@@ -219,6 +227,8 @@ export function discardDatabase(): void {
 /** Copy the encrypted database file into data/backups with a timestamped name. */
 export function backupDbFile(label: string): string | null {
   if (!existsSync(dbFilePath())) return null
+  const dir = dataPath('backups')
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const dest = dataPath('backups', `chisel-${label}-${stamp}.db`)
   copyFileSync(dbFilePath(), dest)

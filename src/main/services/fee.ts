@@ -81,6 +81,7 @@ function hasAllocations(planId: number): boolean {
 }
 
 export function saveFeePlan(studentId: number, input: FeePlanInput): FeePlanView {
+  if (input.totalAmount <= 0) throw new Error('Total fee must be greater than zero')
   const net = input.totalAmount - input.discount
   if (net < 0) throw new Error('Discount cannot exceed the total fee')
   const sum = input.installments.reduce((s, i) => s + i.dueAmount, 0)

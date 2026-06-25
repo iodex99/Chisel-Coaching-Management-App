@@ -116,5 +116,12 @@ export function updateAccount(id: number, input: AccountInput): Account {
 }
 
 export function deleteAccount(id: number): void {
+  // payments.account_id and expenses.account_id reference accounts (ON DELETE
+  // RESTRICT), so guard with a friendly message instead of a raw FK error.
+  const payments = getDb().get<{ c: number }>('SELECT COUNT(*) AS c FROM payments WHERE account_id = ?', [id])?.c ?? 0
+  const expenses = getDb().get<{ c: number }>('SELECT COUNT(*) AS c FROM expenses WHERE account_id = ?', [id])?.c ?? 0
+  if (payments + expenses > 0) {
+    throw new Error('Cannot delete an account that has payments or expenses linked to it. Mark it inactive instead.')
+  }
   getDb().transaction((d) => d.run('DELETE FROM accounts WHERE id = ?', [id]))
 }

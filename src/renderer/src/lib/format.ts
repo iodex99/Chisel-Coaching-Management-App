@@ -20,13 +20,16 @@ export function isoToDisplay(iso: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
 }
 
-/** display dd-mm-yyyy (or dd/mm/yyyy) -> ISO yyyy-mm-dd (empty string if invalid). */
+/** display dd-mm-yyyy (or dd/mm/yyyy) -> ISO yyyy-mm-dd. Empty string if the
+ * text isn't a real calendar date (rejects Feb 30, Apr 31, month 13, etc.). */
 export function displayToIso(text: string): string {
   const m = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(text.trim())
   if (!m) return ''
   const day = Number(m[1])
   const month = Number(m[2])
-  if (day < 1 || day > 31 || month < 1 || month > 12) return ''
+  const year = Number(m[3])
+  const dt = new Date(year, month - 1, day)
+  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return ''
   return `${m[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 

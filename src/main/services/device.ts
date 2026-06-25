@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import log from 'electron-log/main'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { randomBytes, createHmac } from 'crypto'
@@ -25,7 +26,9 @@ export function getDeviceIdentity(): DeviceIdentity {
       const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<DeviceIdentity>
       if (parsed.deviceId && parsed.deviceSecret) return parsed as DeviceIdentity
     } catch {
-      /* fall through and regenerate */
+      // Corrupted device file: regenerate. The machine then counts as a new
+      // device, so trusted-device status is lost and 2FA will be required again.
+      log.warn('device.json was unreadable; regenerating device identity (2FA will be required on this device)')
     }
   }
   const identity: DeviceIdentity = {

@@ -4,6 +4,39 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.10]
+
+A correctness/hardening release driven by a full system test pass and a
+multi-agent adversarial audit. Unit tests grew from 49 to 73 (a full dummy-data
+integration scenario incl. an Excel upload, plus edge-case and service-guard
+suites).
+
+### Fixed
+- **Persistence race:** `flush()` could capture a stale database during a
+  backup, password change, restore, or quit — a coalesced async write firing
+  mid-flush cleared the dirty flag and swapped in a write that `flush()` never
+  awaited, so the most recent transaction could be missing from the snapshot.
+  Flushing is now deterministic (sync write + drain).
+- **Month-end due dates:** imported fee installments now clamp to the last day
+  of the month (Jan 31 + 1 month → Feb 28/29) instead of rolling into March.
+- **Invalid dates rejected:** impossible calendar dates (Feb 31, Apr 31) are now
+  rejected by the date field and the Excel import, not stored.
+- **Fee import validation:** rejects non-positive totals, negative discounts and
+  a present-but-invalid first due date (instead of silently importing).
+- **Account deletion:** deleting an account still referenced by payments or
+  expenses now shows a clear message instead of a raw database error.
+- **Expense edit / fee plan:** editing an expense validates a positive amount;
+  a fee plan requires a positive total.
+
+### Security
+- **2FA brute-force guard:** the authenticator gate now allows at most 5 wrong
+  codes per session before dropping it (you must re-enter the password) — the
+  password step was already rate-limited; this closes the gap after it.
+- **Lockout backoff cap:** the exponential login lockout can no longer overflow
+  to an invalid date.
+- **Defensive validation:** dates and financial-year strings are format-checked
+  in the IPC layer so a malformed value can't reach the date math.
+
 ## [1.0.9]
 
 ### Changed

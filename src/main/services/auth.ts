@@ -30,6 +30,7 @@ import type {
 
 const MAX_ATTEMPTS = 5
 const LOCK_BASE_MS = 30_000 // doubles for each failure past the threshold
+const MAX_2FA_ATTEMPTS = 5 // wrong codes allowed before the session is dropped
 
 interface Session {
   user: User
@@ -37,6 +38,7 @@ interface Session {
   stage: AuthStage
   loginAt: number
   lastActivity: number
+  twoFactorAttempts: number
 }
 
 let session: Session | null = null
@@ -131,7 +133,7 @@ export async function setup(input: SetupInput): Promise<LoginResult> {
 
   const user: User = { id: 1, username: input.username, displayName: input.username }
   // 2FA is mandatory, so a fresh account must enroll an authenticator next.
-  session = { user, key, stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now() }
+  session = { user, key, stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
   log.info(`First-run setup completed for "${input.username}"`)
   return { status: 'enroll_required', user }
 }
@@ -173,16 +175,16 @@ export async function login(input: LoginInput): Promise<LoginResult> {
 
   // Decide the gate: enroll if no authenticators, skip 2FA on a trusted device.
   if (twoFactor.enrolledCount() === 0) {
-    session = { user, key, stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now() }
+    session = { user, key, stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
     return { status: 'enroll_required', user }
   }
   if (twoFactor.isCurrentDeviceTrusted()) {
-    session = { user, key, stage: 'authenticated', loginAt: Date.now(), lastActivity: Date.now() }
+    session = { user, key, stage: 'authenticated', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
     audit('login')
     log.info(`User "${user.username}" logged in (trusted device)`)
     return { status: 'ok', user }
   }
-  session = { user, key, stage: 'pending-2fa', loginAt: Date.now(), lastActivity: Date.now() }
+  session = { user, key, stage: 'pending-2fa', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
   return { status: '2fa_required', user }
 }
 
@@ -191,7 +193,16 @@ export function verifyTwoFactor(input: VerifyTwoFactorInput): User {
   const s = requireStage('pending-2fa')
   const code = input.code.trim()
   const ok = twoFactor.verifyTotp(code) || twoFactor.verifyRecoveryCode(code)
-  if (!ok) throw new Error('Invalid authentication code')
+  if (!ok) {
+    // Rate-limit code guessing within the gate: drop the session after too many
+    // wrong codes so an attacker can't brute-force TOTP after the password step.
+    s.twoFactorAttempts += 1
+    if (s.twoFactorAttempts >= MAX_2FA_ATTEMPTS) {
+      logout()
+      throw new Error('Too many invalid codes. Please sign in again.')
+    }
+    throw new Error('Invalid authentication code')
+  }
   if (input.trustDevice) {
     try {
       twoFactor.trustCurrentDevice()
@@ -255,7 +266,9 @@ export async function changePassword(input: ChangePasswordInput): Promise<void> 
 function registerFailure(kf: KeyfileData): void {
   kf.failedAttempts = (kf.failedAttempts ?? 0) + 1
   if (kf.failedAttempts >= MAX_ATTEMPTS) {
-    const over = kf.failedAttempts - MAX_ATTEMPTS
+    // Cap the exponent so the backoff can't overflow to an Invalid Date
+    // (2**1024 = Infinity). 10 → ~8.5h, already an effectively-permanent lock.
+    const over = Math.min(kf.failedAttempts - MAX_ATTEMPTS, 10)
     kf.lockedUntil = new Date(Date.now() + LOCK_BASE_MS * 2 ** over).toISOString()
   }
   kf.updatedAt = now()

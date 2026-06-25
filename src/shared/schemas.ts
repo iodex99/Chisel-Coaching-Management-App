@@ -3,6 +3,17 @@ import { z } from 'zod'
 /** Minimum master-password length. Surfaced in the UI too. */
 export const MIN_PASSWORD_LENGTH = 8
 
+// Dates are stored as ISO yyyy-mm-dd (the renderer's DateField always emits this
+// or an empty string). Validate the format so a malformed date can never reach
+// the date math (financial-year, ranges) and produce NaN.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const isoDateRequired = (msg: string) => z.string().trim().refine((v) => ISO_DATE.test(v), msg)
+const isoDateOptional = z
+  .string()
+  .trim()
+  .refine((v) => v === '' || ISO_DATE.test(v), 'Enter a valid date')
+  .optional()
+
 export const setupSchema = z.object({
   username: z.string().trim().min(3, 'Username must be at least 3 characters').max(40),
   password: z.string().min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`).max(200),
@@ -57,7 +68,12 @@ export const accountInputSchema = z.object({
   notes: z.string().trim().max(500).optional(),
   vendorFyLimit: z.number().int().min(0).default(0),
   vendorFyLimits: z
-    .array(z.object({ fy: z.string().trim().min(4).max(10), limit: z.number().int().min(0) }))
+    .array(
+      z.object({
+        fy: z.string().trim().regex(/^\d{4}-\d{2}$/, 'Financial year must look like 2026-27'),
+        limit: z.number().int().min(0)
+      })
+    )
     .max(30)
     .optional()
 })
@@ -70,8 +86,8 @@ export const batchInputSchema = z.object({
   courseName: z.string().trim().max(80).optional(),
   academicYear: z.string().trim().max(20).optional(),
   defaultFee: z.number().int().min(0).default(0),
-  startDate: z.string().trim().max(10).optional(),
-  endDate: z.string().trim().max(10).optional(),
+  startDate: isoDateOptional,
+  endDate: isoDateOptional,
   status: z.enum(['active', 'inactive']).default('active'),
   notes: z.string().trim().max(500).optional()
 })
@@ -92,12 +108,12 @@ export const studentInputSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(60),
   lastName: z.string().trim().min(1, 'Last name is required').max(60),
   gender: z.string().trim().min(1, 'Gender is required').max(10),
-  dob: z.string().trim().max(10).optional(),
+  dob: isoDateOptional,
   phone: z.string().trim().max(20).optional(),
   email: z.string().trim().max(120).optional(),
   address: z.string().trim().max(300).optional(),
   batchId: z.number().int().positive().nullable().optional(),
-  admissionDate: z.string().trim().min(1, 'Admission date is required').max(10),
+  admissionDate: isoDateRequired('Admission date is required'),
   status: z.enum(['active', 'inactive', 'dropped', 'completed']).default('active'),
   notes: z.string().trim().max(1000).optional(),
   guardians: z.array(guardianInputSchema).max(5).default([])
@@ -121,12 +137,12 @@ export const studentFilterSchema = z.object({
 export const feeInstallmentInputSchema = z.object({
   label: z.string().trim().max(60).optional(),
   dueAmount: z.number().int().min(0),
-  dueDate: z.string().trim().max(10).optional()
+  dueDate: isoDateOptional
 })
 
 export const feePlanInputSchema = z.object({
   name: z.string().trim().min(1, 'Plan name is required').max(80),
-  totalAmount: z.number().int().min(0),
+  totalAmount: z.number().int().positive('Total fee must be greater than zero'),
   discount: z.number().int().min(0).default(0),
   notes: z.string().trim().max(500).optional(),
   installments: z.array(feeInstallmentInputSchema).min(1, 'Add at least one installment').max(60)
@@ -160,7 +176,7 @@ const paymentAllocationSchema = z.object({
 export const paymentInputSchema = z.object({
   studentId: z.number().int().positive(),
   amount: z.number().int().positive('Amount must be greater than zero'),
-  paymentDate: z.string().trim().min(1).max(10),
+  paymentDate: isoDateRequired('Payment date is required'),
   mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other']),
   accountId: z.number().int().positive().nullable().optional(),
   referenceNo: z.string().trim().max(60).optional(),
@@ -204,7 +220,7 @@ export const vendorInputSchema = z.object({
 export const vendorUpdateSchema = z.object({ id: z.number().int().positive(), input: vendorInputSchema })
 
 export const expenseInputSchema = z.object({
-  expenseDate: z.string().trim().min(1).max(10),
+  expenseDate: isoDateRequired('Expense date is required'),
   categoryId: z.number().int().positive().nullable().optional(),
   vendorId: z.number().int().positive().nullable().optional(),
   payee: z.string().trim().max(120).optional(),

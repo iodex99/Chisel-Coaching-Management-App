@@ -241,6 +241,7 @@ export function createExpense(input: ExpenseInput, userId = 1): ExpenseRecord {
 }
 
 export function updateExpense(id: number, input: ExpenseInput): ExpenseRecord {
+  if (input.amount <= 0) throw new Error('Amount must be greater than zero')
   enforceVendorLimit(input, id)
   getDb().transaction((d) =>
     d.run(

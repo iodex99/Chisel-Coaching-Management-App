@@ -42,27 +42,28 @@ const cellNumber = (row: ExcelJS.Row, col: number | null): number => {
   return Number.isFinite(n) ? n : 0
 }
 
+/** Build an ISO date string from parts, returning '' unless it is a real
+ * calendar date (rejects Feb 31, Apr 31, month 13, etc.). */
+function ymdToISO(y: number, m: number, d: number): string {
+  const dt = new Date(y, m - 1, d)
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return ''
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
 /** Parse a date cell to ISO (yyyy-mm-dd). Accepts a real Excel date, or text in
- * dd-mm-yyyy / dd/mm/yyyy (preferred) or yyyy-mm-dd. Returns '' if unparseable. */
+ * dd-mm-yyyy / dd/mm/yyyy (preferred) or yyyy-mm-dd. Returns '' if unparseable
+ * or not a real calendar date. */
 function cellDate(row: ExcelJS.Row, col: number | null): string {
   if (!col) return ''
   const v = row.getCell(col).value
   if (v instanceof Date) {
-    const y = v.getUTCFullYear()
-    const m = v.getUTCMonth() + 1
-    const d = v.getUTCDate()
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    return ymdToISO(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate())
   }
   const t = String(row.getCell(col).text ?? '').trim()
   const dmy = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(t)
-  if (dmy) {
-    const day = Number(dmy[1])
-    const mon = Number(dmy[2])
-    if (day >= 1 && day <= 31 && mon >= 1 && mon <= 12) {
-      return `${dmy[3]}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    }
-  }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
+  if (dmy) return ymdToISO(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]))
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t)
+  if (iso) return ymdToISO(Number(iso[1]), Number(iso[2]), Number(iso[3]))
   return ''
 }
 
@@ -162,8 +163,14 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
     gRelation: findCol(h, ['guardianrelation'], 'guardianrelation'),
     gPhone: findCol(h, ['guardianphone'], 'guardianphone')
   }
-  if (!c.adm || !c.first) {
-    throw new Error('Could not find the "Admission No" and "First Name" columns. Use the provided template.')
+  const missingCols: string[] = []
+  if (!c.adm) missingCols.push('Admission No')
+  if (!c.admdate) missingCols.push('Admission Date (DD-MM-YYYY)')
+  if (!c.first) missingCols.push('First Name')
+  if (!c.last) missingCols.push('Last Name')
+  if (!c.gender) missingCols.push('Gender')
+  if (missingCols.length) {
+    throw new Error(`These required columns are missing — use the provided template: ${missingCols.join(', ')}`)
   }
 
   const batchByName = new Map(listBatches().map((b) => [b.name.toLowerCase(), b.id]))
@@ -263,15 +270,34 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
       continue
     }
 
-    const total = toPaise(cellNumber(row, c.total))
-    const discount = toPaise(cellNumber(row, c.discount))
+    const totalRupees = cellNumber(row, c.total)
+    const discountRupees = cellNumber(row, c.discount)
+    if (totalRupees <= 0) {
+      result.errors.push({ row: r, message: 'Total Fee must be greater than zero' })
+      continue
+    }
+    if (discountRupees < 0) {
+      result.errors.push({ row: r, message: 'Discount cannot be negative' })
+      continue
+    }
+    const total = toPaise(totalRupees)
+    const discount = toPaise(discountRupees)
     const net = total - discount
     if (net <= 0) {
       result.errors.push({ row: r, message: 'Total fee must be greater than the discount' })
       continue
     }
     const count = Math.max(1, Math.min(60, Math.round(cellNumber(row, c.installments)) || 1))
+    // A first due date is required to schedule installments; reject a present-but-invalid one.
+    const firstDueRaw = cellText(row, c.firstDue)
     const firstDue = cellDate(row, c.firstDue)
+    if (!firstDue) {
+      result.errors.push({
+        row: r,
+        message: firstDueRaw ? 'First Due Date is not a valid date (use DD-MM-YYYY)' : 'Missing required: First Due Date (DD-MM-YYYY)'
+      })
+      continue
+    }
 
     const per = Math.floor(net / count)
     const installments = Array.from({ length: count }, (_, i) => ({
@@ -295,11 +321,15 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
   return result
 }
 
-/** Add `months` to a YYYY-MM-DD date; returns undefined if the base is empty/invalid.
- *  Formats from local date parts (not toISOString, which shifts by timezone). */
+/** Add `months` to a YYYY-MM-DD date, clamping the day to the last day of the
+ *  target month so e.g. Jan 31 + 1 month → Feb 28/29 (not a roll-over into March).
+ *  Returns undefined if the base is empty/invalid. Formats from local date parts
+ *  (not toISOString, which shifts by timezone). */
 function addMonths(dateISO: string, months: number): string | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return undefined
   const [y, m, d] = dateISO.split('-').map(Number)
-  const base = new Date(y, m - 1 + months, d)
-  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`
+  const target = new Date(y, m - 1 + months, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  const day = Math.min(d, lastDay)
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
