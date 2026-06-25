@@ -40,8 +40,8 @@ beforeAll(async () => {
 
 afterAll(() => {
   delete process.env.CHISEL_DATA_DIR
-  rmSync(dataDir, { recursive: true, force: true })
-  rmSync(userDataDir, { recursive: true, force: true })
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  rmSync(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 })
 
 describe('backup carries its own key (survives a password change)', () => {
