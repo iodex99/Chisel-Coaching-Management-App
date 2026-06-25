@@ -38,7 +38,12 @@ beforeAll(async () => {
   firstInstallmentId = plan.installments[0].id
 })
 
-afterAll(() => {
+afterAll(async () => {
+  const __db = await import("../db/database")
+  if (__db.isOpen()) {
+    await __db.flushCurrent()
+    __db.closeDatabase()
+  }
   delete process.env.CHISEL_DATA_DIR
   rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 })
