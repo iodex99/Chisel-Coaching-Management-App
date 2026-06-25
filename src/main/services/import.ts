@@ -42,6 +42,30 @@ const cellNumber = (row: ExcelJS.Row, col: number | null): number => {
   return Number.isFinite(n) ? n : 0
 }
 
+/** Parse a date cell to ISO (yyyy-mm-dd). Accepts a real Excel date, or text in
+ * dd-mm-yyyy / dd/mm/yyyy (preferred) or yyyy-mm-dd. Returns '' if unparseable. */
+function cellDate(row: ExcelJS.Row, col: number | null): string {
+  if (!col) return ''
+  const v = row.getCell(col).value
+  if (v instanceof Date) {
+    const y = v.getUTCFullYear()
+    const m = v.getUTCMonth() + 1
+    const d = v.getUTCDate()
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
+  const t = String(row.getCell(col).text ?? '').trim()
+  const dmy = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(t)
+  if (dmy) {
+    const day = Number(dmy[1])
+    const mon = Number(dmy[2])
+    if (day >= 1 && day <= 31 && mon >= 1 && mon <= 12) {
+      return `${dmy[3]}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
+  return ''
+}
+
 const toPaise = (rupees: number): number => Math.round(rupees * 100)
 
 // --- Templates ---
@@ -57,24 +81,28 @@ function buildStudentsTemplate(): ExcelJS.Workbook {
   ;['male', 'female', 'other'].forEach((g, i) => (lists.getCell(`B${i + 1}`).value = g))
   ;['active', 'inactive', 'dropped', 'completed'].forEach((s, i) => (lists.getCell(`C${i + 1}`).value = s))
 
+  // Columns A..L. Fields marked * are required.
   ws.columns = [
-    { header: 'Admission No', width: 14 },
-    { header: 'First Name', width: 16 },
-    { header: 'Last Name', width: 16 },
-    { header: 'Gender', width: 10 },
-    { header: 'Phone', width: 14 },
-    { header: 'Email', width: 22 },
-    { header: 'Batch', width: 22 },
-    { header: 'Status', width: 12 },
-    { header: 'Admission Date (YYYY-MM-DD)', width: 26 }
+    { header: 'Admission No *', width: 14 }, // A
+    { header: 'Admission Date (DD-MM-YYYY) *', width: 26 }, // B
+    { header: 'First Name *', width: 16 }, // C
+    { header: 'Last Name *', width: 16 }, // D
+    { header: 'Gender *', width: 10 }, // E (dropdown)
+    { header: 'Phone', width: 14 }, // F
+    { header: 'Email', width: 22 }, // G
+    { header: 'Batch', width: 22 }, // H (dropdown)
+    { header: 'Status', width: 12 }, // I (dropdown)
+    { header: 'Guardian Name', width: 20 }, // J
+    { header: 'Guardian Relation', width: 16 }, // K
+    { header: 'Guardian Phone', width: 16 } // L
   ]
   ws.getRow(1).font = { bold: true }
 
   const lastBatch = Math.max(batches.length, 1)
   for (let r = 2; r <= 500; r++) {
-    ws.getCell(`D${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$B$1:$B$3'] }
-    ws.getCell(`G${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: [`Lists!$A$1:$A$${lastBatch}`] }
-    ws.getCell(`H${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$C$1:$C$4'] }
+    ws.getCell(`E${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$B$1:$B$3'] }
+    ws.getCell(`H${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: [`Lists!$A$1:$A$${lastBatch}`] }
+    ws.getCell(`I${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$C$1:$C$4'] }
   }
   return wb
 }
@@ -88,7 +116,7 @@ function buildFeesTemplate(): ExcelJS.Workbook {
     { header: 'Total Fee', width: 12 },
     { header: 'Discount', width: 12 },
     { header: 'Installments', width: 14 },
-    { header: 'First Due Date (YYYY-MM-DD)', width: 26 }
+    { header: 'First Due Date (DD-MM-YYYY)', width: 26 }
   ]
   ws.getRow(1).font = { bold: true }
   return wb
@@ -122,6 +150,7 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
   const h = headerIndex(ws)
   const c = {
     adm: findCol(h, ['admissionno', 'admissionnumber']),
+    admdate: findCol(h, ['admissiondate'], 'admissiondate'),
     first: findCol(h, ['firstname', 'name']),
     last: findCol(h, ['lastname']),
     gender: findCol(h, ['gender']),
@@ -129,7 +158,9 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
     email: findCol(h, ['email']),
     batch: findCol(h, ['batch', 'class']),
     status: findCol(h, ['status']),
-    admdate: findCol(h, ['admissiondate'], 'admissiondate')
+    gName: findCol(h, ['guardianname'], 'guardianname'),
+    gRelation: findCol(h, ['guardianrelation'], 'guardianrelation'),
+    gPhone: findCol(h, ['guardianphone'], 'guardianphone')
   }
   if (!c.adm || !c.first) {
     throw new Error('Could not find the "Admission No" and "First Name" columns. Use the provided template.')
@@ -142,14 +173,20 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
     const row = ws.getRow(r)
     const adm = cellText(row, c.adm)
     const first = cellText(row, c.first)
-    if (!adm && !first) continue // blank row
+    const last = cellText(row, c.last)
+    const gender = cellText(row, c.gender)
+    const admDate = cellDate(row, c.admdate)
+    if (!adm && !first && !last) continue // blank row
 
-    if (!adm) {
-      result.errors.push({ row: r, message: 'Admission No is required' })
-      continue
-    }
-    if (!first) {
-      result.errors.push({ row: r, message: 'First Name is required' })
+    // Required fields.
+    const missing: string[] = []
+    if (!adm) missing.push('Admission No')
+    if (!admDate) missing.push('Admission Date (DD-MM-YYYY)')
+    if (!first) missing.push('First Name')
+    if (!last) missing.push('Last Name')
+    if (!gender) missing.push('Gender')
+    if (missing.length) {
+      result.errors.push({ row: r, message: `Missing required: ${missing.join(', ')}` })
       continue
     }
 
@@ -167,18 +204,23 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
     const statusRaw = cellText(row, c.status).toLowerCase()
     const status = (STATUSES as string[]).includes(statusRaw) ? (statusRaw as StudentStatus) : 'active'
 
+    const guardianName = cellText(row, c.gName)
+    const guardians = guardianName
+      ? [{ name: guardianName, relation: cellText(row, c.gRelation) || undefined, phone: cellText(row, c.gPhone) || undefined }]
+      : []
+
     try {
       createStudent({
         admissionNo: adm,
         firstName: first,
-        lastName: cellText(row, c.last) || undefined,
-        gender: cellText(row, c.gender) || undefined,
+        lastName: last,
+        gender,
         phone: cellText(row, c.phone) || undefined,
         email: cellText(row, c.email) || undefined,
         batchId,
         status,
-        admissionDate: cellText(row, c.admdate) || undefined,
-        guardians: []
+        admissionDate: admDate,
+        guardians
       })
       result.imported++
     } catch (e) {
@@ -229,7 +271,7 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
       continue
     }
     const count = Math.max(1, Math.min(60, Math.round(cellNumber(row, c.installments)) || 1))
-    const firstDue = cellText(row, c.firstDue)
+    const firstDue = cellDate(row, c.firstDue)
 
     const per = Math.floor(net / count)
     const installments = Array.from({ length: count }, (_, i) => ({
@@ -253,10 +295,11 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
   return result
 }
 
-/** Add `months` to a YYYY-MM-DD date; returns undefined if the base is empty/invalid. */
+/** Add `months` to a YYYY-MM-DD date; returns undefined if the base is empty/invalid.
+ *  Formats from local date parts (not toISOString, which shifts by timezone). */
 function addMonths(dateISO: string, months: number): string | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return undefined
   const [y, m, d] = dateISO.split('-').map(Number)
   const base = new Date(y, m - 1 + months, d)
-  return base.toISOString().slice(0, 10)
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`
 }

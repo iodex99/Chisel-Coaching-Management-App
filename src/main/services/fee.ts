@@ -7,8 +7,10 @@ import type {
   StudentFeeSummary
 } from '@shared/types'
 
+import { todayISO } from './fy'
+
 const now = (): string => new Date().toISOString()
-const today = (): string => new Date().toISOString().slice(0, 10)
+const today = (): string => todayISO()
 const rupees = (paise: number): string => `₹${(paise / 100).toLocaleString('en-IN')}`
 
 function statusFor(due: number, paid: number, dueDate: string | null): InstallmentStatus {

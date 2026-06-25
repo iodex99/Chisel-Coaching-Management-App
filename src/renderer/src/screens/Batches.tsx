@@ -7,6 +7,7 @@ import { queryClient } from '../lib/queryClient'
 import { fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+import { DateField } from '../components/DateField'
 
 export default function Batches(): JSX.Element {
   const { data: batches = [], isLoading } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
@@ -186,11 +187,11 @@ function BatchForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Start date</label>
-          <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <DateField value={startDate} onChange={setStartDate} />
         </div>
         <div>
           <label className="label">End date</label>
-          <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <DateField value={endDate} onChange={setEndDate} />
         </div>
       </div>
       <div>

@@ -40,6 +40,10 @@ npm run dev      # start the app with hot reload
   preload, register the handler in `src/main/ipc.ts`, validate the payload with
   a Zod schema from `src/shared/schemas.ts`.
 - **Money:** integer paise everywhere in main/DB; format only for display.
+- **Dates:** stored as ISO `yyyy-mm-dd`; shown/entered/exported as `dd-mm-yyyy`
+  (use `DateField` for inputs, `fmtDate` for display). Never build a date with
+  `toISOString()` (it shifts by timezone) — use the local-parts helpers
+  (`todayIso`, `todayISO`).
 - **Imports:** `@shared/*`, `@main/*` (node side) and `@/*`, `@shared/*`
   (renderer side) path aliases.
 - **Migrations:** append a new numbered file in `src/main/db/migrations/`; never

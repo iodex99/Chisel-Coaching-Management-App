@@ -4,6 +4,25 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.9]
+
+### Changed
+- **Required student fields:** Admission No, Admission Date, First Name, Last
+  Name and Gender are now mandatory — in the student form, the IPC validation,
+  and the import (rows missing any are reported and skipped).
+- **Students import template** now includes **Guardian Name / Relation / Phone**
+  columns (imported as the student's guardian), and required columns are marked
+  with `*`.
+- **Dates are `dd-mm-yyyy` everywhere** — on-screen, receipts, reports, CSV/Excel
+  exports, and the import templates + parsing. A new date field shows and accepts
+  `dd-mm-yyyy` (with a calendar button); internally dates remain ISO for sorting.
+- Manual fee-structure entry is retained (per student, on the student page);
+  import is an optional extra.
+
+### Fixed
+- A timezone bug where dates built via UTC (`toISOString`) could land a day off
+  (e.g. installment due dates, "today"); dates are now computed from local parts.
+
 ## [1.0.8]
 
 ### Fixed — data was lost on update

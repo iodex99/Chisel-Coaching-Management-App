@@ -5,12 +5,13 @@ import type { ExpenseRecord, ExpenseInput, PaymentMode } from '@shared/types'
 import { PAYMENT_MODES } from '@shared/constants'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
-import { fmtDate, fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
+import { fmtDate, fmtMoney, rupeesToPaise, paiseToRupees, todayIso } from '../lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { Pager, PAGE_SIZE } from '../components/Pager'
+import { DateField } from '../components/DateField'
 
-const todayStr = (): string => new Date().toISOString().slice(0, 10)
+const todayStr = (): string => todayIso()
 const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value === m)?.label ?? m
 
 export default function Expenses(): JSX.Element {
@@ -101,13 +102,13 @@ export default function Expenses(): JSX.Element {
             </option>
           ))}
         </select>
-        <div>
+        <div className="w-40">
           <label className="label">From</label>
-          <input className="input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <DateField value={dateFrom} onChange={setDateFrom} />
         </div>
-        <div>
+        <div className="w-40">
           <label className="label">To</label>
-          <input className="input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <DateField value={dateTo} onChange={setDateTo} />
         </div>
       </div>
 
@@ -253,7 +254,7 @@ function ExpenseForm({ expense, onSaved, onCancel }: { expense: ExpenseRecord | 
     <form onSubmit={submit} className="grid grid-cols-2 gap-3">
       <div>
         <label className="label">Date</label>
-        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <DateField value={date} onChange={setDate} />
       </div>
       <div>
         <label className="label">Amount (₹)</label>

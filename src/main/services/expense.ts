@@ -1,5 +1,5 @@
 import { getDb } from '../db/database'
-import { financialYear, financialYearRange } from './fy'
+import { financialYear, financialYearRange, todayISO } from './fy'
 import { effectiveVendorLimit } from './account'
 import type {
   ExpenseCategory,
@@ -268,7 +268,7 @@ export function deleteExpense(id: number): void {
 }
 
 export function getExpenseSummary(): ExpenseSummary {
-  const monthStart = `${new Date().toISOString().slice(0, 7)}-01`
+  const monthStart = `${todayISO().slice(0, 7)}-01`
   const monthTotal =
     getDb().get<{ t: number }>('SELECT COALESCE(SUM(amount), 0) AS t FROM expenses WHERE expense_date >= ?', [monthStart])?.t ?? 0
   const allTimeTotal = getDb().get<{ t: number }>('SELECT COALESCE(SUM(amount), 0) AS t FROM expenses')?.t ?? 0

@@ -50,6 +50,8 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   await page.getByRole('link', { name: 'Batches' }).click()
   await page.getByRole('button', { name: 'New batch' }).click()
   await page.getByPlaceholder('e.g. NEET Morning 2026').fill('E2E Batch')
+  // Exercise the dd-mm-yyyy DateField (start date).
+  await page.getByPlaceholder('dd-mm-yyyy').first().fill('01-06-2026')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText('E2E Batch')).toBeVisible()
 

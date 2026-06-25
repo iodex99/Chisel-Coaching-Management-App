@@ -4,7 +4,8 @@ import { FileDown, FileText, FileSpreadsheet } from 'lucide-react'
 import type { ReportColumn, ReportResult, ReportType } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
-import { fmtDate, fmtMoney } from '../lib/format'
+import { DateField } from '../components/DateField'
+import { fmtDate, fmtMoney, isoToDisplay } from '../lib/format'
 
 const REPORTS: { value: ReportType; label: string; group: 'Fees' | 'Expenses' }[] = [
   { value: 'collection-by-student', label: 'Collection by student', group: 'Fees' },
@@ -29,7 +30,7 @@ function fmtCell(value: string | number | null, col: ReportColumn): string {
 function csvValue(value: string | number | null, col: ReportColumn): string {
   if (value === null || value === undefined) return ''
   if (col.type === 'money') return (Number(value) / 100).toFixed(2)
-  const s = String(value)
+  const s = col.type === 'date' ? isoToDisplay(String(value)) || String(value) : String(value)
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
@@ -102,13 +103,13 @@ export default function Reports(): JSX.Element {
             </optgroup>
           </select>
         </div>
-        <div>
+        <div className="w-40">
           <label className="label">From</label>
-          <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} disabled={type === 'outstanding'} />
+          <DateField value={from} onChange={setFrom} disabled={type === 'outstanding'} />
         </div>
-        <div>
+        <div className="w-40">
           <label className="label">To</label>
-          <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} disabled={type === 'outstanding'} />
+          <DateField value={to} onChange={setTo} disabled={type === 'outstanding'} />
         </div>
         <button className="btn-outline" onClick={() => void exportExcel()} disabled={!data}>
           <FileSpreadsheet size={16} /> Excel

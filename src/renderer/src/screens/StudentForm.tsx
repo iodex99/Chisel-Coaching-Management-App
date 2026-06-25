@@ -6,6 +6,8 @@ import type { GuardianInput, StudentInput, StudentStatus } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { PageHeader } from '../components/PageHeader'
+import { DateField } from '../components/DateField'
+import { todayIso } from '../lib/format'
 
 const EMPTY: StudentInput = {
   admissionNo: '',
@@ -70,7 +72,7 @@ export default function StudentForm(): JSX.Element {
   useEffect(() => {
     if (!editing) {
       api.students.nextAdmissionNo().then((no) =>
-        setForm((f) => ({ ...f, admissionNo: no, admissionDate: new Date().toISOString().slice(0, 10) }))
+        setForm((f) => ({ ...f, admissionNo: no, admissionDate: todayIso() }))
       )
     }
   }, [editing])
@@ -99,7 +101,10 @@ export default function StudentForm(): JSX.Element {
     e.preventDefault()
     setError('')
     if (!form.admissionNo.trim()) return setError('Admission number is required')
+    if (!form.admissionDate?.trim()) return setError('Admission date is required')
     if (!form.firstName.trim()) return setError('First name is required')
+    if (!form.lastName?.trim()) return setError('Last name is required')
+    if (!form.gender?.trim()) return setError('Gender is required')
     setBusy(true)
     const input: StudentInput = {
       ...form,
@@ -130,23 +135,23 @@ export default function StudentForm(): JSX.Element {
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Details</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Admission number</label>
+              <label className="label">Admission number *</label>
               <input className="input" value={form.admissionNo} onChange={(e) => set('admissionNo', e.target.value)} />
             </div>
             <div>
-              <label className="label">Admission date</label>
-              <input className="input" type="date" value={form.admissionDate} onChange={(e) => set('admissionDate', e.target.value)} />
+              <label className="label">Admission date *</label>
+              <DateField value={form.admissionDate ?? ''} onChange={(v) => set('admissionDate', v)} />
             </div>
             <div>
-              <label className="label">First name</label>
+              <label className="label">First name *</label>
               <input className="input" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
             </div>
             <div>
-              <label className="label">Last name</label>
+              <label className="label">Last name *</label>
               <input className="input" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
             </div>
             <div>
-              <label className="label">Gender</label>
+              <label className="label">Gender *</label>
               <select className="input" value={form.gender} onChange={(e) => set('gender', e.target.value)}>
                 <option value="">—</option>
                 <option value="male">Male</option>
@@ -156,7 +161,7 @@ export default function StudentForm(): JSX.Element {
             </div>
             <div>
               <label className="label">Date of birth</label>
-              <input className="input" type="date" value={form.dob} onChange={(e) => set('dob', e.target.value)} />
+              <DateField value={form.dob ?? ''} onChange={(v) => set('dob', v)} />
             </div>
             <div>
               <label className="label">Phone</label>

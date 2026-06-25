@@ -4,6 +4,7 @@ import type { PaymentFilter, PaymentMode } from '@shared/types'
 import { PAYMENT_MODES } from '@shared/constants'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+import { DateField } from '../components/DateField'
 import { PaymentForm } from './PaymentForm'
 import { PaymentHistory } from './PaymentHistory'
 
@@ -40,13 +41,13 @@ export default function Payments(): JSX.Element {
           <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
           <input className="input pl-9" placeholder="Search receipt no or student" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div>
+        <div className="w-40">
           <label className="label">From</label>
-          <input className="input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <DateField value={dateFrom} onChange={setDateFrom} />
         </div>
-        <div>
+        <div className="w-40">
           <label className="label">To</label>
-          <input className="input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <DateField value={dateTo} onChange={setDateTo} />
         </div>
         <select className="input w-40" value={mode} onChange={(e) => setMode(e.target.value as PaymentMode | 'all')}>
           <option value="all">All modes</option>

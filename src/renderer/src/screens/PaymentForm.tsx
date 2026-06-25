@@ -5,10 +5,11 @@ import type { PaymentMode, PaymentRecord } from '@shared/types'
 import { PAYMENT_MODES } from '@shared/constants'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
-import { fmtMoney, rupeesToPaise } from '../lib/format'
+import { fmtMoney, rupeesToPaise, todayIso } from '../lib/format'
 import { ReceiptActions } from '../components/ReceiptActions'
+import { DateField } from '../components/DateField'
 
-const todayStr = (): string => new Date().toISOString().slice(0, 10)
+const todayStr = (): string => todayIso()
 
 export function PaymentForm({
   studentId: fixedStudentId,
@@ -148,7 +149,7 @@ export function PaymentForm({
         </div>
         <div>
           <label className="label">Date</label>
-          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DateField value={date} onChange={setDate} />
         </div>
         <div>
           <label className="label">Mode</label>

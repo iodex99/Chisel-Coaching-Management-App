@@ -4,8 +4,9 @@ import { Plus, Trash2, Wand2 } from 'lucide-react'
 import type { FeePlanView, FeePlanInput, InstallmentStatus } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
-import { fmtDate, fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
+import { fmtDate, fmtMoney, rupeesToPaise, paiseToRupees, todayIso } from '../lib/format'
 import { Modal } from '../components/Modal'
+import { DateField } from '../components/DateField'
 
 const STATUS_BADGE: Record<InstallmentStatus, string> = {
   pending: 'bg-slate-100 text-slate-600',
@@ -141,7 +142,7 @@ function FeePlanEditor({
   const [rows, setRows] = useState<Row[]>(
     plan
       ? plan.installments.map((i) => ({ label: i.label ?? '', amount: paiseToRupees(i.dueAmount), dueDate: i.dueDate ?? '' }))
-      : [{ label: 'Installment 1', amount: '', dueDate: new Date().toISOString().slice(0, 10) }]
+      : [{ label: 'Installment 1', amount: '', dueDate: todayIso() }]
   )
   const [splitCount, setSplitCount] = useState('3')
   const [error, setError] = useState('')
@@ -167,10 +168,11 @@ function FeePlanEditor({
     const next: Row[] = []
     for (let i = 0; i < n; i++) {
       const d = new Date(start.getFullYear(), start.getMonth() + i, start.getDate())
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
       next.push({
         label: `Installment ${i + 1}`,
         amount: paiseToRupees(per + (i === n - 1 ? remainder : 0)),
-        dueDate: d.toISOString().slice(0, 10)
+        dueDate: iso
       })
     }
     setRows(next)
@@ -241,7 +243,9 @@ function FeePlanEditor({
             <div key={i} className="grid grid-cols-12 gap-2">
               <input className="input col-span-4" placeholder="Label" value={r.label} onChange={(e) => setRow(i, 'label', e.target.value)} />
               <input className="input col-span-3" type="number" min="0" step="0.01" placeholder="Amount" value={r.amount} onChange={(e) => setRow(i, 'amount', e.target.value)} />
-              <input className="input col-span-4" type="date" value={r.dueDate} onChange={(e) => setRow(i, 'dueDate', e.target.value)} />
+              <div className="col-span-4">
+                <DateField value={r.dueDate} onChange={(v) => setRow(i, 'dueDate', v)} />
+              </div>
               <button type="button" className="col-span-1 text-slate-400 hover:text-accent-600" onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}>
                 <Trash2 size={16} />
               </button>

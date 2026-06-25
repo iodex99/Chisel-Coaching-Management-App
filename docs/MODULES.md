@@ -3,7 +3,8 @@
 ## Module 1 — Student Fee Management
 
 ### Student management
-- Student master database with profile creation/maintenance.
+- Student master database with profile creation/maintenance. Required fields:
+  admission no, admission date, first name, last name, gender.
 - Parent/guardian details per student.
 - Course/batch allocation.
 - Admission records (admission no, date, status).

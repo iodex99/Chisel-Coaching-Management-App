@@ -29,7 +29,7 @@ function money(paise: number): string {
 
 function fmtDate(iso: string): string {
   const [y, m, d] = iso.split('-')
-  return d && m && y ? `${d}/${m}/${y}` : iso
+  return d && m && y ? `${d}-${m}-${y}` : iso
 }
 
 function escapeHtml(s: string): string {

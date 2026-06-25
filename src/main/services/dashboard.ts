@@ -1,13 +1,14 @@
 import { getDb } from '../db/database'
 import { listFeeSummaries } from './fee'
+import { todayISO } from './fy'
 import type { DueItem, DashboardData, PaymentListItem } from '@shared/types'
 
-const today = (): string => new Date().toISOString().slice(0, 10)
+const today = (): string => todayISO()
 
 function addDays(dateISO: string, days: number): string {
   const d = new Date(dateISO + 'T00:00:00')
   d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 interface DueRow {

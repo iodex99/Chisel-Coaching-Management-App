@@ -219,7 +219,7 @@ function expenseResult(type: ReportType, title: string, firstCols: ReportColumn[
 const money = (paise: number): string => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtD = (iso: string): string => {
   const [y, m, d] = iso.split('-')
-  return d ? `${d}/${m}/${y}` : iso
+  return d ? `${d}-${m}-${y}` : iso
 }
 const esc = (s: string): string => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] as string)
 
@@ -317,5 +317,6 @@ function excelValue(value: string | number | null, col: ReportColumn): string | 
   if (value === null || value === undefined) return null
   if (col.type === 'money') return Number(value) / 100
   if (col.type === 'number') return Number(value)
+  if (col.type === 'date') return fmtD(String(value))
   return String(value)
 }

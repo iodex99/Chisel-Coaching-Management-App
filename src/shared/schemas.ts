@@ -90,14 +90,14 @@ export const guardianInputSchema = z.object({
 export const studentInputSchema = z.object({
   admissionNo: z.string().trim().min(1, 'Admission number is required').max(40),
   firstName: z.string().trim().min(1, 'First name is required').max(60),
-  lastName: z.string().trim().max(60).optional(),
-  gender: z.string().trim().max(10).optional(),
+  lastName: z.string().trim().min(1, 'Last name is required').max(60),
+  gender: z.string().trim().min(1, 'Gender is required').max(10),
   dob: z.string().trim().max(10).optional(),
   phone: z.string().trim().max(20).optional(),
   email: z.string().trim().max(120).optional(),
   address: z.string().trim().max(300).optional(),
   batchId: z.number().int().positive().nullable().optional(),
-  admissionDate: z.string().trim().max(10).optional(),
+  admissionDate: z.string().trim().min(1, 'Admission date is required').max(10),
   status: z.enum(['active', 'inactive', 'dropped', 'completed']).default('active'),
   notes: z.string().trim().max(1000).optional(),
   guardians: z.array(guardianInputSchema).max(5).default([])

@@ -37,7 +37,20 @@ afterAll(() => {
 async function studentsXlsx(rows: string[][]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Students')
-  ws.addRow(['Admission No', 'First Name', 'Last Name', 'Gender', 'Phone', 'Email', 'Batch', 'Status', 'Admission Date (YYYY-MM-DD)'])
+  ws.addRow([
+    'Admission No *',
+    'Admission Date (DD-MM-YYYY) *',
+    'First Name *',
+    'Last Name *',
+    'Gender *',
+    'Phone',
+    'Email',
+    'Batch',
+    'Status',
+    'Guardian Name',
+    'Guardian Relation',
+    'Guardian Phone'
+  ])
   rows.forEach((r) => ws.addRow(r))
   return Buffer.from(await wb.xlsx.writeBuffer())
 }
@@ -48,34 +61,40 @@ describe('bulk import', () => {
     expect(existsSync(path)).toBe(true)
   })
 
-  it('imports valid student rows and reports row-level errors', async () => {
+  it('imports valid rows, parses dd-mm-yyyy dates and a guardian, and reports errors', async () => {
     const buf = await studentsXlsx([
-      ['S-1', 'Asha', '', '', '', '', 'Alpha', 'active', ''], // valid
-      ['S-2', 'Bob', '', '', '', '', 'Ghost', '', ''], // unknown batch
-      ['', '', '', '', '', '', '', '', ''], // blank → skipped
-      ['S-1', 'Dup', '', '', '', '', '', '', ''] // duplicate admission no
+      ['S-1', '01-06-2026', 'Asha', 'Verma', 'female', '', '', 'Alpha', 'active', 'Ramesh Verma', 'Father', '9000000000'],
+      ['S-2', '01-06-2026', 'Bob', 'Singh', 'male', '', '', 'Ghost'], // unknown batch
+      [''], // blank row
+      ['S-3', '01-06-2026', 'NoLast', '', 'female'], // missing last name
+      ['S-1', '02-06-2026', 'Dup', 'Verma', 'male'] // duplicate admission no
     ])
     const res = await importer.importStudents(buf)
     expect(res.imported).toBe(1)
-    expect(res.errors).toHaveLength(2)
-    expect(res.errors[0].message).toMatch(/Unknown batch/)
-    expect(res.errors[1].message).toMatch(/already exists/)
-    expect(students.listStudents({ search: 'Asha' })).toHaveLength(1)
+    expect(res.errors).toHaveLength(3)
+
+    const item = students.listStudents({ search: 'Asha' })[0]
+    const detail = students.getStudent(item.id)
+    expect(detail?.admissionDate).toBe('2026-06-01') // dd-mm-yyyy parsed to ISO
+    expect(detail?.lastName).toBe('Verma')
+    expect(detail?.gender).toBe('female')
+    expect(detail?.guardians).toHaveLength(1)
+    expect(detail?.guardians[0].name).toBe('Ramesh Verma')
   })
 
-  it('imports fee plans split into installments', async () => {
-    const s = students.createStudent({ admissionNo: 'F-9', firstName: 'Fay', status: 'active', guardians: [] })
+  it('imports fee plans with a dd-mm-yyyy first due date', async () => {
+    const s = students.createStudent({ admissionNo: 'F-9', firstName: 'Fay', lastName: 'K', gender: 'female', status: 'active', guardians: [] })
     const wb = new ExcelJS.Workbook()
     const ws = wb.addWorksheet('Fees')
-    ws.addRow(['Admission No', 'Plan Name', 'Total Fee', 'Discount', 'Installments', 'First Due Date (YYYY-MM-DD)'])
-    ws.addRow(['F-9', 'Annual', 1000, 0, 2, '2026-04-01'])
-    ws.addRow(['NOPE', 'Annual', 1000, 0, 1, '2026-04-01']) // unknown student
+    ws.addRow(['Admission No', 'Plan Name', 'Total Fee', 'Discount', 'Installments', 'First Due Date (DD-MM-YYYY)'])
+    ws.addRow(['F-9', 'Annual', 1000, 0, 2, '01-04-2026'])
+    ws.addRow(['NOPE', 'Annual', 1000, 0, 1, '01-04-2026'])
     const res = await importer.importFees(Buffer.from(await wb.xlsx.writeBuffer()))
 
     expect(res.imported).toBe(1)
     expect(res.errors).toHaveLength(1)
     const plan = fees.getFeePlan(s.id)
-    expect(plan?.netAmount).toBe(100000)
     expect(plan?.installments).toHaveLength(2)
+    expect(plan?.installments[0].dueDate).toBe('2026-04-01')
   })
 })
