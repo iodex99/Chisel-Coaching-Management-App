@@ -12,6 +12,7 @@ function fmtSize(bytes: number): string {
 export function BackupSettings(): JSX.Element {
   const { data: backups = [] } = useQuery({ queryKey: ['backups'], queryFn: () => api.backups.list() })
   const { data: auto } = useQuery({ queryKey: ['backup-auto'], queryFn: () => api.backups.getAuto() })
+  const { data: dataDir } = useQuery({ queryKey: ['data-dir'], queryFn: () => api.app.getDataDir() })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -74,8 +75,15 @@ export function BackupSettings(): JSX.Element {
         <Database size={16} /> Data & backups
       </h2>
       <p className="mt-1 text-xs text-slate-400">
-        Backups include the encrypted database and its key file, stored in <code>data/backups</code>.
+        All your data — the encrypted database, its key, receipts and backups — lives in one folder next to the
+        app. Copy this whole folder to a USB drive to move everything to another PC.
       </p>
+      <div className="mt-2 flex items-center gap-2 rounded-md bg-slate-50 p-2 text-xs">
+        <code className="flex-1 select-all break-all text-slate-700">{dataDir || '…'}</code>
+        <button className="btn-outline py-0.5 text-xs" onClick={() => void api.app.openDataDir()}>
+          Open folder
+        </button>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <button className="btn-primary" onClick={() => void create()} disabled={busy}>

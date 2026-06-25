@@ -1,4 +1,7 @@
 import { shell } from 'electron'
+import { existsSync, mkdirSync } from 'fs'
+import { join } from 'path'
+import ExcelJS from 'exceljs'
 import { getDb } from '../db/database'
 import { listFeeSummaries } from './fee'
 import { getInstituteProfile } from './settings'
@@ -264,4 +267,55 @@ export async function exportReportPdf(type: ReportType, range: ReportRange = {})
   await htmlToPdf(renderReportHtml(result, range), file)
   await shell.openPath(file)
   return file
+}
+
+function exportsDir(): string {
+  const dir = dataPath('exports')
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+/** Export a report as a real .xlsx (opens in Excel) and open it. */
+export async function exportReportExcel(type: ReportType, range: ReportRange = {}): Promise<string> {
+  const result = getReport(type, range)
+  const inst = getInstituteProfile()
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Report')
+
+  ws.addRow([inst.name])
+  ws.getRow(1).font = { bold: true, size: 14 }
+  const period = [range.from && `from ${fmtD(range.from)}`, range.to && `to ${fmtD(range.to)}`].filter(Boolean).join(' ') || 'all dates'
+  ws.addRow([`${result.title} · ${period}`])
+  ws.addRow([])
+
+  const headerRow = ws.addRow(result.columns.map((c) => c.label))
+  headerRow.font = { bold: true }
+
+  for (const row of result.rows) {
+    ws.addRow(result.columns.map((c) => excelValue(row[c.key], c)))
+  }
+  if (result.totals && result.rows.length > 0) {
+    const totalRow = ws.addRow(result.columns.map((c, i) => (i === 0 ? 'Total' : excelValue(result.totals![c.key], c))))
+    totalRow.font = { bold: true }
+  }
+
+  // Column widths + money formatting.
+  result.columns.forEach((c, i) => {
+    const col = ws.getColumn(i + 1)
+    col.width = Math.max(12, c.label.length + 2)
+    if (c.type === 'money') col.numFmt = '#,##0.00'
+  })
+
+  const file = join(exportsDir(), `report-${type}-${Date.now()}.xlsx`)
+  await wb.xlsx.writeFile(file)
+  await shell.openPath(file)
+  return file
+}
+
+/** Coerce a report cell into the value type Excel should store. */
+function excelValue(value: string | number | null, col: ReportColumn): string | number | null {
+  if (value === null || value === undefined) return null
+  if (col.type === 'money') return Number(value) / 100
+  if (col.type === 'number') return Number(value)
+  return String(value)
 }

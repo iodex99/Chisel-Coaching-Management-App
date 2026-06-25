@@ -14,6 +14,10 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required').max(200)
 })
 
+export const verifyPasswordSchema = z.object({
+  password: z.string().min(1, 'Password is required').max(200)
+})
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z

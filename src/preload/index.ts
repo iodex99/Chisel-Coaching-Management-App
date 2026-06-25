@@ -10,13 +10,16 @@ import type { UpdateStatus } from '@shared/types'
 const api: ChiselApi = {
   app: {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
-    getPlatform: () => process.platform
+    getPlatform: () => process.platform,
+    getDataDir: () => ipcRenderer.invoke('app:getDataDir'),
+    openDataDir: () => ipcRenderer.invoke('app:openDataDir')
   },
   auth: {
     getState: () => ipcRenderer.invoke('auth:getState'),
     setup: (input) => ipcRenderer.invoke('auth:setup', input),
     login: (input) => ipcRenderer.invoke('auth:login', input),
     logout: () => ipcRenderer.invoke('auth:logout'),
+    verifyPassword: (input) => ipcRenderer.invoke('auth:verifyPassword', input),
     changePassword: (input) => ipcRenderer.invoke('auth:changePassword', input)
   },
   twoFactor: {
@@ -96,7 +99,8 @@ const api: ChiselApi = {
   },
   reports: {
     get: (input) => ipcRenderer.invoke('reports:get', input),
-    exportPdf: (input) => ipcRenderer.invoke('reports:exportPdf', input)
+    exportPdf: (input) => ipcRenderer.invoke('reports:exportPdf', input),
+    exportExcel: (input) => ipcRenderer.invoke('reports:exportExcel', input)
   },
   backups: {
     list: () => ipcRenderer.invoke('backups:list'),
@@ -114,6 +118,12 @@ const api: ChiselApi = {
       ipcRenderer.on('update:status', handler)
       return () => ipcRenderer.removeListener('update:status', handler)
     }
+  },
+  bulk: {
+    studentTemplate: () => ipcRenderer.invoke('bulk:studentTemplate'),
+    importStudents: (bytes) => ipcRenderer.invoke('bulk:importStudents', bytes),
+    feeTemplate: () => ipcRenderer.invoke('bulk:feeTemplate'),
+    importFees: (bytes) => ipcRenderer.invoke('bulk:importFees', bytes)
   }
 }
 

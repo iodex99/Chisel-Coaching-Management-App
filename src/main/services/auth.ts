@@ -84,6 +84,14 @@ export function currentUser(): User | null {
   return session?.user ?? null
 }
 
+/** Verify the master password against the active session (for re-auth gates). */
+export function verifyPassword(password: string): boolean {
+  const s = requireSession()
+  const kf = readKeyfile()
+  const key = deriveKey(password, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
+  return key.equals(s.key)
+}
+
 function audit(action: string): void {
   try {
     getDb().transaction((d) =>

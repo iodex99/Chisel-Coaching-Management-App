@@ -39,7 +39,8 @@ import type {
   ReportResult,
   BackupInfo,
   UpdateInfo,
-  UpdateStatus
+  UpdateStatus,
+  ImportResult
 } from './types'
 
 /**
@@ -54,12 +55,17 @@ export interface ChiselApi {
   app: {
     getVersion(): Promise<string>
     getPlatform(): NodeJS.Platform
+    /** Absolute path of the portable data folder. */
+    getDataDir(): Promise<string>
+    /** Open the data folder in the OS file explorer. */
+    openDataDir(): Promise<string>
   }
   auth: {
     getState(): Promise<AuthState>
     setup(input: SetupInput): Promise<LoginResult>
     login(input: LoginInput): Promise<LoginResult>
     logout(): Promise<void>
+    verifyPassword(input: { password: string }): Promise<boolean>
     changePassword(input: ChangePasswordInput): Promise<void>
   }
   twoFactor: {
@@ -144,6 +150,7 @@ export interface ChiselApi {
   reports: {
     get(input: { type: ReportType; from?: string; to?: string }): Promise<ReportResult>
     exportPdf(input: { type: ReportType; from?: string; to?: string }): Promise<string>
+    exportExcel(input: { type: ReportType; from?: string; to?: string }): Promise<string>
   }
   backups: {
     list(): Promise<BackupInfo[]>
@@ -158,5 +165,12 @@ export interface ChiselApi {
     install(): Promise<void>
     /** Subscribe to install progress; returns an unsubscribe function. */
     onStatus(cb: (status: UpdateStatus) => void): () => void
+  }
+  bulk: {
+    /** Generate + open the students import template (.xlsx). Returns its path. */
+    studentTemplate(): Promise<string>
+    importStudents(bytes: Uint8Array): Promise<ImportResult>
+    feeTemplate(): Promise<string>
+    importFees(bytes: Uint8Array): Promise<ImportResult>
   }
 }

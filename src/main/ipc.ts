@@ -1,5 +1,6 @@
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, shell } from 'electron'
 import { z, type ZodTypeAny } from 'zod'
+import { resolveDataDir } from './paths'
 import * as auth from './services/auth'
 import * as twoFactor from './services/twoFactor'
 import * as accounts from './services/account'
@@ -14,9 +15,11 @@ import * as expenses from './services/expense'
 import * as reports from './services/report'
 import * as backup from './services/backup'
 import * as updater from './services/update'
+import * as importer from './services/import'
 import {
   setupSchema,
   loginSchema,
+  verifyPasswordSchema,
   changePasswordSchema,
   beginEnrollSchema,
   confirmEnrollSchema,
@@ -79,12 +82,15 @@ function handleAuthed(channel: string, schema: ZodTypeAny | null, fn: Handler<un
 /** Register all IPC handlers. Each feature domain adds its handlers here. */
 export function registerIpc(): void {
   handle('app:getVersion', null, () => app.getVersion())
+  handle('app:getDataDir', null, () => resolveDataDir())
+  handle('app:openDataDir', null, () => shell.openPath(resolveDataDir()))
 
   // Authentication & session
   handle('auth:getState', null, () => auth.getAuthState())
   handle('auth:setup', setupSchema, (i) => auth.setup(i))
   handle('auth:login', loginSchema, (i) => auth.login(i))
   handle('auth:logout', null, () => auth.logout())
+  handleAuthed('auth:verifyPassword', verifyPasswordSchema, (i) => auth.verifyPassword(i.password))
   handle('auth:changePassword', changePasswordSchema, (i) => auth.changePassword(i))
 
   // Two-factor authentication
@@ -183,6 +189,7 @@ export function registerIpc(): void {
   // Reports
   handleAuthed('reports:get', reportRequestSchema, (i) => reports.getReport(i.type, { from: i.from, to: i.to }))
   handleAuthed('reports:exportPdf', reportRequestSchema, (i) => reports.exportReportPdf(i.type, { from: i.from, to: i.to }))
+  handleAuthed('reports:exportExcel', reportRequestSchema, (i) => reports.exportReportExcel(i.type, { from: i.from, to: i.to }))
 
   // Backups
   handleAuthed('backups:list', null, () => backup.listBackups())
@@ -195,4 +202,10 @@ export function registerIpc(): void {
   // Updates
   handleAuthed('update:check', null, () => updater.checkForUpdate())
   handleAuthed('update:install', null, () => updater.downloadAndInstall())
+
+  // Bulk import (binary xlsx payloads, so no Zod schema)
+  handleAuthed('bulk:studentTemplate', null, () => importer.generateStudentTemplate())
+  handleAuthed('bulk:importStudents', null, (raw) => importer.importStudents(Buffer.from(raw as Uint8Array)))
+  handleAuthed('bulk:feeTemplate', null, () => importer.generateFeeTemplate())
+  handleAuthed('bulk:importFees', null, (raw) => importer.importFees(Buffer.from(raw as Uint8Array)))
 }

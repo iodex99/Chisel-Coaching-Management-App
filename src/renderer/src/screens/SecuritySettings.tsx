@@ -5,6 +5,7 @@ import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtDate, fmtDateTime } from '../lib/format'
 import { Modal } from '../components/Modal'
+import { ConfirmPasswordModal } from '../components/ConfirmPasswordModal'
 import { EnrollAuthenticatorForm } from './auth/EnrollAuthenticatorForm'
 import { RecoveryCodesView } from './auth/RecoveryCodesView'
 import { MAX_AUTHENTICATORS } from '@shared/constants'
@@ -12,6 +13,7 @@ import { MAX_AUTHENTICATORS } from '@shared/constants'
 export function SecuritySettings(): JSX.Element {
   const { data: status, isLoading } = useQuery({ queryKey: ['2fa-status'], queryFn: () => api.twoFactor.status() })
   const [enrollOpen, setEnrollOpen] = useState(false)
+  const [gateOpen, setGateOpen] = useState(false)
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
   const [error, setError] = useState('')
 
@@ -61,7 +63,7 @@ export function SecuritySettings(): JSX.Element {
           </h2>
           <button
             className="btn-outline"
-            onClick={() => setEnrollOpen(true)}
+            onClick={() => setGateOpen(true)}
             disabled={status.enrolledCount >= MAX_AUTHENTICATORS}
           >
             <Plus size={16} /> Add
@@ -127,6 +129,17 @@ export function SecuritySettings(): JSX.Element {
           </ul>
         )}
       </section>
+
+      <ConfirmPasswordModal
+        open={gateOpen}
+        onClose={() => setGateOpen(false)}
+        title="Confirm to add authenticator"
+        description="Enter your master password to add a new authenticator app."
+        onVerified={() => {
+          setGateOpen(false)
+          setEnrollOpen(true)
+        }}
+      />
 
       <Modal open={enrollOpen} onClose={() => setEnrollOpen(false)} title="Add authenticator">
         <EnrollAuthenticatorForm

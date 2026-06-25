@@ -1,11 +1,16 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { Upload } from 'lucide-react'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
+import { Modal } from '../components/Modal'
+import { ImportPanel } from './ImportPanel'
 import { fmtDate, fmtMoney } from '../lib/format'
 
 export default function Fees(): JSX.Element {
   const nav = useNavigate()
+  const [importing, setImporting] = useState(false)
   const { data: summaries = [], isLoading } = useQuery({ queryKey: ['fee-summaries'], queryFn: () => api.fees.summaries() })
 
   const totals = summaries.reduce(
@@ -15,7 +20,15 @@ export default function Fees(): JSX.Element {
 
   return (
     <div className="p-8">
-      <PageHeader title="Fees" subtitle="Fee plans and outstanding balances across all students." />
+      <PageHeader
+        title="Fees"
+        subtitle="Fee plans and outstanding balances across all students."
+        actions={
+          <button className="btn-outline" onClick={() => setImporting(true)}>
+            <Upload size={16} /> Import fee plans
+          </button>
+        }
+      />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Kpi label="Total fees (net)" value={fmtMoney(totals.net)} />
@@ -65,6 +78,10 @@ export default function Fees(): JSX.Element {
           </tbody>
         </table>
       </div>
+
+      <Modal open={importing} onClose={() => setImporting(false)} title="Import fee plans" width="max-w-lg">
+        <ImportPanel kind="fees" />
+      </Modal>
     </div>
   )
 }

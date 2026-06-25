@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Ban } from 'lucide-react'
-import type { PaymentFilter, PaymentMode } from '@shared/types'
+import type { PaymentFilter, PaymentListItem, PaymentMode } from '@shared/types'
 import { PAYMENT_MODES } from '@shared/constants'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtDate, fmtMoney } from '../lib/format'
 import { ReceiptActions } from '../components/ReceiptActions'
 import { Pager, PAGE_SIZE } from '../components/Pager'
+import { Modal } from '../components/Modal'
 
 const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value === m)?.label ?? m
 
@@ -20,16 +21,27 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
     queryFn: () => api.payments.list({ ...filter, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
   })
 
-  async function cancel(id: number): Promise<void> {
-    const reason = window.prompt('Reason for cancelling this payment? (optional)') ?? undefined
-    if (!window.confirm('Cancel this payment? The amount will no longer count toward fees paid.')) return
+  const [cancelling, setCancelling] = useState<PaymentListItem | null>(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function confirmCancel(): Promise<void> {
+    if (!cancelling) return
+    setBusy(true)
+    setError('')
     try {
-      await api.payments.cancel({ id, reason })
+      await api.payments.cancel({ id: cancelling.id, reason: reason.trim() || undefined })
       void queryClient.invalidateQueries({ queryKey: ['payments'] })
       void queryClient.invalidateQueries({ queryKey: ['fee-plan'] })
       void queryClient.invalidateQueries({ queryKey: ['fee-summaries'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setCancelling(null)
+      setReason('')
     } catch (e) {
-      alert(errMessage(e))
+      setError(errMessage(e))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -78,7 +90,7 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
                 <div className="flex items-center justify-end gap-2">
                   <ReceiptActions paymentId={p.id} size="sm" />
                   {!p.isCancelled && (
-                    <button className="text-slate-400 hover:text-accent-600" title="Cancel payment" onClick={() => void cancel(p.id)}>
+                    <button className="text-slate-400 hover:text-accent-600" title="Cancel payment" onClick={() => setCancelling(p)}>
                       <Ban size={15} />
                     </button>
                   )}
@@ -90,6 +102,31 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
       </table>
     </div>
     <Pager page={page} setPage={setPage} count={payments.length} />
+
+    <Modal open={cancelling !== null} onClose={() => setCancelling(null)} title="Cancel payment">
+      {cancelling && (
+        <div>
+          <p className="text-sm text-slate-600">
+            Cancel receipt <span className="font-mono">{cancelling.receiptNo}</span> for{' '}
+            <span className="font-medium">{cancelling.studentName}</span> ({fmtMoney(cancelling.amount)})? The amount
+            will no longer count toward fees paid. The record is kept (marked cancelled), not deleted.
+          </p>
+          <div className="mt-3">
+            <label className="label">Reason (optional)</label>
+            <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+          </div>
+          {error && <p className="mt-2 text-sm text-accent-600">{error}</p>}
+          <div className="mt-4 flex justify-end gap-2">
+            <button className="btn-outline" onClick={() => setCancelling(null)} disabled={busy}>
+              Keep payment
+            </button>
+            <button className="btn-accent" onClick={() => void confirmCancel()} disabled={busy}>
+              {busy ? 'Cancelling…' : 'Cancel payment'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
     </>
   )
 }

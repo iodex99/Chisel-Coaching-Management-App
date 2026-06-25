@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileDown, FileText } from 'lucide-react'
+import { FileDown, FileText, FileSpreadsheet } from 'lucide-react'
 import type { ReportColumn, ReportResult, ReportType } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
@@ -67,6 +67,15 @@ export default function Reports(): JSX.Element {
     }
   }
 
+  async function exportExcel(): Promise<void> {
+    setError('')
+    try {
+      await api.reports.exportExcel({ type, from: from || undefined, to: to || undefined })
+    } catch (e) {
+      setError(errMessage(e))
+    }
+  }
+
   const grouped = { Fees: REPORTS.filter((r) => r.group === 'Fees'), Expenses: REPORTS.filter((r) => r.group === 'Expenses') }
 
   return (
@@ -101,6 +110,9 @@ export default function Reports(): JSX.Element {
           <label className="label">To</label>
           <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} disabled={type === 'outstanding'} />
         </div>
+        <button className="btn-outline" onClick={() => void exportExcel()} disabled={!data}>
+          <FileSpreadsheet size={16} /> Excel
+        </button>
         <button className="btn-outline" onClick={() => data && exportCsv(data)} disabled={!data}>
           <FileDown size={16} /> CSV
         </button>

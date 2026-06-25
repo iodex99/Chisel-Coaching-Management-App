@@ -7,6 +7,8 @@
 - Parent/guardian details per student.
 - Course/batch allocation.
 - Admission records (admission no, date, status).
+- **Bulk import** of students (and fee plans) from an Excel template with
+  dropdowns for batch/gender/status and per-row validation.
 
 ### Fee structure
 - Per-student fee plan with total, discount and net.

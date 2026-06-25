@@ -451,6 +451,13 @@ export interface UpdateStatus {
   message?: string
 }
 
+// --- Bulk import ---
+
+export interface ImportResult {
+  imported: number
+  errors: { row: number; message: string }[]
+}
+
 // --- Backups ---
 
 export interface BackupInfo {

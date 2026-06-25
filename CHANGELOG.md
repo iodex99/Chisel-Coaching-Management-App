@@ -4,6 +4,26 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.3]
+
+### Added
+- **Bulk import** for students and fees via Excel (`.xlsx`) templates. The
+  students template includes **dropdowns** (data validation) for Batch, Gender
+  and Status — the Batch list is generated from the batches you've created, so
+  there are no spelling mistakes. Import validates every row and reports
+  per-row errors; fee rows are split into equal monthly installments. Available
+  from the **Students** and **Fees** screens.
+- **Excel (.xlsx) report export** that opens in Excel (alongside CSV/PDF).
+- **Settings → Data & backups** now shows the exact data-folder path with an
+  **Open folder** button.
+
+### Changed / Fixed
+- **Fixed payment Cancel**: it relied on `window.prompt`, which Electron does not
+  support, so nothing happened. It now uses a proper confirmation dialog (with an
+  optional reason) and refreshes the list/dashboard.
+- **Security**: adding a new authenticator now requires re-entering the master
+  password.
+
 ## [1.0.2]
 
 - First release built with the `UPDATE_READ_TOKEN` secret configured, so the

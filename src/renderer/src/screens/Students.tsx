@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Upload } from 'lucide-react'
 import type { StudentStatus } from '@shared/types'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { Pager, PAGE_SIZE } from '../components/Pager'
+import { Modal } from '../components/Modal'
+import { ImportPanel } from './ImportPanel'
 
 const STATUS_BADGE: Record<StudentStatus, string> = {
   active: 'bg-green-100 text-green-700',
@@ -21,6 +23,7 @@ export default function Students(): JSX.Element {
   const [status, setStatus] = useState<StudentStatus | 'all'>('active')
 
   const [page, setPage] = useState(0)
+  const [importing, setImporting] = useState(false)
   useEffect(() => setPage(0), [search, batchId, status])
 
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
@@ -42,9 +45,14 @@ export default function Students(): JSX.Element {
         title="Students"
         subtitle="Student master records, admissions and guardians."
         actions={
-          <button className="btn-primary" onClick={() => nav('/students/new')}>
-            <Plus size={16} /> New student
-          </button>
+          <>
+            <button className="btn-outline" onClick={() => setImporting(true)}>
+              <Upload size={16} /> Import
+            </button>
+            <button className="btn-primary" onClick={() => nav('/students/new')}>
+              <Plus size={16} /> New student
+            </button>
+          </>
         }
       />
 
@@ -122,6 +130,10 @@ export default function Students(): JSX.Element {
         </table>
       </div>
       <Pager page={page} setPage={setPage} count={students.length} />
+
+      <Modal open={importing} onClose={() => setImporting(false)} title="Import students" width="max-w-lg">
+        <ImportPanel kind="students" />
+      </Modal>
     </div>
   )
 }
