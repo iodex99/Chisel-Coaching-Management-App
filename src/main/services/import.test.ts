@@ -36,7 +36,7 @@ afterAll(async () => {
     __db.closeDatabase()
   }
   delete process.env.CHISEL_DATA_DIR
-  rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  try { rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } catch { /* best-effort temp cleanup */ }
 })
 
 async function studentsXlsx(rows: string[][]): Promise<Buffer> {

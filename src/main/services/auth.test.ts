@@ -39,8 +39,8 @@ afterAll(async () => {
     __db.closeDatabase()
   }
   delete process.env.CHISEL_DATA_DIR
-  rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
-  rmSync(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  try { rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } catch { /* best-effort temp cleanup */ }
+  try { rmSync(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } catch { /* best-effort temp cleanup */ }
 })
 
 // Shared across the ordered flow below.
