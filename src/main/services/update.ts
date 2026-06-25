@@ -1,12 +1,7 @@
 import { app, type BrowserWindow } from 'electron'
-import { writeFileSync, existsSync, mkdirSync, rmSync } from 'fs'
-import { join, dirname, basename } from 'path'
-import { spawn } from 'child_process'
-import { createHash } from 'crypto'
-import extract from 'extract-zip'
-import semver from 'semver'
+import { autoUpdater } from 'electron-updater'
 import log from 'electron-log/main'
-import { dataPath } from '../paths'
+import semver from 'semver'
 import type { UpdateInfo, UpdateStatus } from '@shared/types'
 
 // Injected at build time via electron-vite `define` from the UPDATE_READ_TOKEN
@@ -14,18 +9,6 @@ import type { UpdateInfo, UpdateStatus } from '@shared/types'
 declare const __UPDATE_TOKEN__: string
 const TOKEN =
   (typeof __UPDATE_TOKEN__ !== 'undefined' ? __UPDATE_TOKEN__ : '') || process.env.UPDATE_READ_TOKEN || ''
-
-const REPO = 'iodex99/Chisel-Coaching-Management-App'
-const API = `https://api.github.com/repos/${REPO}`
-
-function headers(json = true): Record<string, string> {
-  return {
-    Authorization: `Bearer ${TOKEN}`,
-    Accept: json ? 'application/vnd.github+json' : 'application/octet-stream',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'ChiselCoaching-Updater'
-  }
-}
 
 let getWindow: () => BrowserWindow | null = () => null
 export function setStatusWindow(fn: () => BrowserWindow | null): void {
@@ -39,26 +22,31 @@ function emit(status: UpdateStatus): void {
   }
 }
 
-interface GhAsset {
-  id: number
-  name: string
-}
-interface GhRelease {
-  tag_name: string
-  body: string
-  assets: GhAsset[]
+autoUpdater.autoDownload = false
+autoUpdater.autoInstallOnAppQuit = false
+autoUpdater.logger = log
+
+const mb = (bytes: number): string => (bytes / 1024 / 1024).toFixed(1)
+
+let wired = false
+function wireEvents(): void {
+  if (wired) return
+  wired = true
+  autoUpdater.on('download-progress', (p) =>
+    emit({
+      state: 'downloading',
+      percent: Math.round(p.percent),
+      transferred: p.transferred,
+      total: p.total,
+      message: `${mb(p.transferred)} / ${mb(p.total)} MB`
+    })
+  )
+  autoUpdater.on('error', (e) => emit({ state: 'error', message: e?.message ?? 'Update failed' }))
 }
 
-async function latestRelease(): Promise<GhRelease> {
-  const res = await fetch(`${API}/releases/latest`, { headers: headers() })
-  if (!res.ok) throw new Error(`GitHub responded ${res.status}`)
-  return (await res.json()) as GhRelease
-}
-
-async function downloadAsset(id: number): Promise<Buffer> {
-  const res = await fetch(`${API}/releases/assets/${id}`, { headers: headers(false) })
-  if (!res.ok) throw new Error(`Asset download failed (${res.status})`)
-  return Buffer.from(await res.arrayBuffer())
+/** electron-updater reads GH_TOKEN for a private GitHub feed. */
+function applyToken(): void {
+  if (TOKEN) process.env.GH_TOKEN = TOKEN
 }
 
 export async function checkForUpdate(): Promise<UpdateInfo> {
@@ -66,93 +54,35 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   if (!TOKEN) {
     return { current, latest: null, available: false, notes: '', error: 'Updates are only available in release builds.' }
   }
+  applyToken()
   try {
-    const rel = await latestRelease()
-    const latest = String(rel.tag_name || '').replace(/^v/, '')
+    const res = await autoUpdater.checkForUpdates()
+    const latest = res?.updateInfo?.version ?? null
     const available = Boolean(latest && semver.valid(latest) && semver.gt(latest, current))
-    return { current, latest: latest || null, available, notes: rel.body || '' }
+    const size = res?.updateInfo?.files?.[0]?.size
+    const notes = typeof res?.updateInfo?.releaseNotes === 'string' ? res.updateInfo.releaseNotes : ''
+    return { current, latest, available, notes, sizeBytes: size }
   } catch (e) {
     return { current, latest: null, available: false, notes: '', error: (e as Error).message }
   }
 }
 
-const SWAP_SCRIPT = `param([int]$ProcId, [string]$Src, [string]$Dest, [string]$Exe)
-try { Wait-Process -Id $ProcId -Timeout 60 -ErrorAction SilentlyContinue } catch {}
-Start-Sleep -Seconds 1
-Get-ChildItem -LiteralPath $Src -Force | ForEach-Object {
-  if ($_.Name -ne 'data') {
-    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Dest $_.Name) -Recurse -Force -ErrorAction SilentlyContinue
-  }
-}
-Start-Process -FilePath (Join-Path $Dest $Exe)
-`
-
 /**
- * Download the latest release, verify it, stage it, then spawn a detached
- * PowerShell helper that swaps the program files (preserving ./data) and
- * relaunches the app once this process exits.
+ * Download the latest release via electron-updater and let it drive the NSIS
+ * installer to swap files and relaunch — which handles file locks and restart
+ * reliably (unlike a manual copy of a running app's files).
  */
 export async function downloadAndInstall(): Promise<void> {
   if (!TOKEN) throw new Error('Updates are only available in release builds.')
+  applyToken()
+  wireEvents()
   emit({ state: 'checking' })
-  const rel = await latestRelease()
-  const latest = String(rel.tag_name || '').replace(/^v/, '')
-  const zipAsset = rel.assets.find((a) => a.name.toLowerCase().endsWith('.zip'))
-  const manifestAsset = rel.assets.find((a) => a.name === 'latest.json')
-  if (!zipAsset) throw new Error('No update package was found in the latest release')
-
-  let expectedSha: string | null = null
-  if (manifestAsset) {
-    try {
-      const buf = await downloadAsset(manifestAsset.id)
-      const manifest = JSON.parse(buf.toString('utf8')) as { sha256?: string }
-      expectedSha = manifest.sha256 ?? null
-    } catch {
-      /* manifest is optional */
-    }
-  }
-
-  emit({ state: 'downloading', message: `Downloading v${latest}…` })
-  const zipBuf = await downloadAsset(zipAsset.id)
-
-  emit({ state: 'verifying' })
-  if (expectedSha) {
-    const sha = createHash('sha256').update(zipBuf).digest('hex').toLowerCase()
-    if (sha !== expectedSha.toLowerCase()) throw new Error('The downloaded update failed its integrity check')
-  }
-
-  const updatesDir = dataPath('updates')
-  const staging = join(updatesDir, 'staging')
-  if (existsSync(staging)) rmSync(staging, { recursive: true, force: true })
-  mkdirSync(staging, { recursive: true })
-  const zipPath = join(updatesDir, `chisel-${latest}.zip`)
-  writeFileSync(zipPath, zipBuf)
-
-  emit({ state: 'extracting' })
-  // Electron's fs is patched to treat any path containing ".asar" as an archive,
-  // which makes extracting the new app.asar fail with "Invalid package". Disable
-  // that interception just for the extraction, then restore it.
-  const proc = process as NodeJS.Process & { noAsar?: boolean }
-  proc.noAsar = true
-  try {
-    await extract(zipPath, { dir: staging })
-  } finally {
-    proc.noAsar = false
-  }
-
-  emit({ state: 'installing' })
-  const appDir = dirname(app.getPath('exe'))
-  const exeName = basename(app.getPath('exe'))
-  const script = join(updatesDir, 'swap.ps1')
-  writeFileSync(script, SWAP_SCRIPT, 'utf8')
-
-  spawn(
-    'powershell.exe',
-    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, String(process.pid), staging, appDir, exeName],
-    { detached: true, stdio: 'ignore' }
-  ).unref()
-
-  log.info(`Applying update to v${latest}; relaunching.`)
-  emit({ state: 'ready', message: 'Restarting to apply the update…' })
-  setTimeout(() => app.quit(), 600)
+  const res = await autoUpdater.checkForUpdates()
+  if (!res?.updateInfo) throw new Error('No update is available')
+  emit({ state: 'downloading', percent: 0 })
+  await autoUpdater.downloadUpdate()
+  emit({ state: 'ready', message: 'Restarting to install the update…' })
+  log.info(`Installing update v${res.updateInfo.version}; relaunching.`)
+  // isSilent = true (run the installer silently), isForceRunAfter = true (relaunch).
+  setImmediate(() => autoUpdater.quitAndInstall(true, true))
 }

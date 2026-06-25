@@ -28,30 +28,20 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Build
+      - name: Build renderer/main/preload
         run: npm run build
         env:
           # Baked into the app so the in-app updater can read this private repo.
           UPDATE_READ_TOKEN: ${{ secrets.UPDATE_READ_TOKEN }}
 
-      - name: Build installer (.exe) + unpacked folder
-        run: npx electron-builder --win
+      - name: Build installer + publish (installer, latest.yml, blockmap)
+        run: npx electron-builder --win --publish always
+        env:
+          # electron-builder uploads the release assets to GitHub with this token.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Zip unpacked (for the in-app updater) + manifest
+      - name: Ensure the release is published (electron-builder creates a draft)
         shell: pwsh
-        run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $zip = "chisel-$version.zip"
-          Compress-Archive -Path release/win-unpacked/* -DestinationPath $zip -Force
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          @{ version = $version; sha256 = $hash; assetName = $zip } | ConvertTo-Json | Set-Content -Path latest.json -Encoding utf8
-          Write-Output "Built $zip ($hash)"
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            release/Chisel-Coaching-Setup-*.exe
-            chisel-*.zip
-            latest.json
-          fail_on_unmatched_files: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --tag "${{ github.ref_name }}"

@@ -9,9 +9,11 @@ const STATUS_TEXT: Record<UpdateStatus['state'], string> = {
   verifying: 'Verifying…',
   extracting: 'Extracting…',
   installing: 'Installing…',
-  ready: 'Restarting to apply the update…',
+  ready: 'Restarting to install…',
   error: 'Update failed'
 }
+
+const mb = (bytes?: number): string => (bytes ? (bytes / 1024 / 1024).toFixed(1) : '0')
 
 export function UpdateSettings(): JSX.Element {
   const [info, setInfo] = useState<UpdateInfo | null>(null)
@@ -36,6 +38,7 @@ export function UpdateSettings(): JSX.Element {
 
   async function install(): Promise<void> {
     setInstalling(true)
+    setStatus({ state: 'checking' })
     try {
       await api.update.install()
     } catch (e) {
@@ -43,6 +46,8 @@ export function UpdateSettings(): JSX.Element {
       setInstalling(false)
     }
   }
+
+  const downloading = installing && status && status.state !== 'error'
 
   return (
     <section className="card p-6">
@@ -55,12 +60,31 @@ export function UpdateSettings(): JSX.Element {
 
       {info?.available ? (
         <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-4">
-          <div className="font-medium text-brand-700">Version {info.latest} is available</div>
+          <div className="font-medium text-brand-700">
+            Version {info.latest} is available{info.sizeBytes ? ` · ${mb(info.sizeBytes)} MB` : ''}
+          </div>
           {info.notes && <p className="mt-1 whitespace-pre-wrap text-xs text-slate-600">{info.notes}</p>}
-          <button className="btn-primary mt-3" onClick={() => void install()} disabled={installing}>
-            <Download size={16} /> {installing ? STATUS_TEXT[status?.state ?? 'downloading'] : 'Download & install'}
-          </button>
-          {status && status.state === 'error' && <p className="mt-2 text-sm text-accent-600">{status.message}</p>}
+
+          {downloading ? (
+            <div className="mt-3">
+              <div className="h-2 w-full overflow-hidden rounded bg-brand-100">
+                <div
+                  className="h-2 rounded bg-brand-600 transition-all"
+                  style={{ width: `${status?.percent ?? 0}%` }}
+                />
+              </div>
+              <div className="mt-1 text-xs text-slate-500">
+                {STATUS_TEXT[status?.state ?? 'downloading']}
+                {status?.total ? ` · ${mb(status.transferred)} / ${mb(status.total)} MB (${status.percent ?? 0}%)` : ''}
+              </div>
+            </div>
+          ) : (
+            <button className="btn-primary mt-3" onClick={() => void install()}>
+              <Download size={16} /> Download &amp; install
+            </button>
+          )}
+
+          {status?.state === 'error' && <p className="mt-2 text-sm text-accent-600">{status.message}</p>}
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-3">

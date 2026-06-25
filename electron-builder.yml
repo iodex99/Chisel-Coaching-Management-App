@@ -37,5 +37,11 @@ nsis:
   artifactName: Chisel-Coaching-Setup-${version}.${ext}
   deleteAppDataOnUninstall: false
 
-# The in-app updater handles updates; electron-builder does not publish.
-publish: null
+# Update feed: a private GitHub repo. electron-builder embeds this as
+# app-update.yml and generates latest.yml + blockmap; electron-updater reads
+# them at runtime (with the baked read-only token via GH_TOKEN).
+publish:
+  provider: github
+  owner: iodex99
+  repo: Chisel-Coaching-Management-App
+  private: true

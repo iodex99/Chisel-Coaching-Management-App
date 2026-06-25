@@ -4,6 +4,22 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.6]
+
+### Fixed / Changed — auto-update reworked
+- Replaced the hand-rolled file-swap updater (which couldn't reliably overwrite a
+  running app on Windows — it failed to restart, then errored with `ENOTEMPTY`)
+  with **electron-updater** driving the NSIS installer. Updates now install and
+  relaunch reliably; the `data/` folder is preserved.
+- The Updates panel now shows the **download size** and a **live progress bar**
+  (percent + MB transferred).
+- Release pipeline switched to `electron-builder --publish` (uploads the
+  installer + `latest.yml` + blockmap that electron-updater reads).
+
+> One-time note: because the old updater is baked into installed 1.0.2–1.0.5
+> builds, those can't self-update to 1.0.6 — install **1.0.6 manually** once
+> (download the Setup .exe). In-app updates work from 1.0.6 onward.
+
 ## [1.0.5]
 
 ### Added

@@ -452,12 +452,16 @@ export interface UpdateInfo {
   latest: string | null
   available: boolean
   notes: string
+  /** Size of the update download in bytes, if known. */
+  sizeBytes?: number
   error?: string
 }
 
 export interface UpdateStatus {
   state: 'checking' | 'downloading' | 'verifying' | 'extracting' | 'installing' | 'ready' | 'error'
   percent?: number
+  transferred?: number
+  total?: number
   message?: string
 }
 
