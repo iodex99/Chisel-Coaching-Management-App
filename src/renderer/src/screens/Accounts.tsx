@@ -5,8 +5,15 @@ import type { Account, AccountInput, AccountType } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
+import { currentFy, fyOptions } from '../lib/fy'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+
+/** The per-vendor limit that applies to an account this financial year. */
+function effectiveLimit(a: Account): number {
+  const fy = currentFy()
+  return a.vendorFyLimits.find((l) => l.fy === fy)?.limit ?? a.vendorFyLimit
+}
 
 const TYPES: { value: AccountType; label: string }[] = [
   { value: 'cash', label: 'Cash' },
@@ -79,7 +86,12 @@ export default function Accounts(): JSX.Element {
                 <td className="px-4 py-3 uppercase text-slate-500">{a.type}</td>
                 <td className="px-4 py-3 text-right">{fmtMoney(a.openingBalance)}</td>
                 <td className="px-4 py-3 text-right text-slate-500">
-                  {a.vendorFyLimit > 0 ? fmtMoney(a.vendorFyLimit) : '—'}
+                  {effectiveLimit(a) > 0 ? fmtMoney(effectiveLimit(a)) : '—'}
+                  {a.vendorFyLimits.length > 0 && (
+                    <span className="ml-1 text-[10px] uppercase text-slate-400" title="Varies by financial year">
+                      yr
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   {a.isActive ? (
@@ -137,8 +149,13 @@ function AccountForm({
   const [isActive, setIsActive] = useState(account?.isActive ?? true)
   const [notes, setNotes] = useState(account?.notes ?? '')
   const [vendorLimit, setVendorLimit] = useState(paiseToRupees(account?.vendorFyLimit ?? 0))
+  const [fyLimits, setFyLimits] = useState<{ fy: string; amount: string }[]>(
+    account?.vendorFyLimits.map((l) => ({ fy: l.fy, amount: paiseToRupees(l.limit) })) ?? []
+  )
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const fyChoices = fyOptions()
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -150,7 +167,8 @@ function AccountForm({
       openingBalance: rupeesToPaise(opening),
       isActive,
       notes: notes.trim() || undefined,
-      vendorFyLimit: rupeesToPaise(vendorLimit)
+      vendorFyLimit: rupeesToPaise(vendorLimit),
+      vendorFyLimits: fyLimits.filter((r) => r.fy).map((r) => ({ fy: r.fy, limit: rupeesToPaise(r.amount) }))
     }
     try {
       if (account) await api.accounts.update({ id: account.id, input })
@@ -189,12 +207,56 @@ function AccountForm({
         <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
       <div>
-        <label className="label">Per-vendor limit per financial year (₹)</label>
+        <label className="label">Default per-vendor limit per financial year (₹)</label>
         <input className="input" type="number" min="0" step="0.01" value={vendorLimit} onChange={(e) => setVendorLimit(e.target.value)} />
         <p className="mt-1 text-xs text-slate-400">
-          Caps how much can be paid to any single vendor from this account within a financial year (Apr–Mar). 0 = no
-          limit.
+          Caps how much can be paid to any single vendor from this account in a financial year (Apr–Mar). Used for
+          years without a specific limit below. 0 = no limit.
         </p>
+      </div>
+
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="label mb-0">Limits by financial year (optional)</label>
+          <button
+            type="button"
+            className="btn-ghost py-0.5 text-xs"
+            onClick={() => setFyLimits((rows) => [...rows, { fy: currentFy(), amount: '' }])}
+          >
+            <Plus size={14} /> Add year
+          </button>
+        </div>
+        {fyLimits.length === 0 && <p className="text-xs text-slate-400">No year-specific limits — the default applies.</p>}
+        <div className="space-y-2">
+          {fyLimits.map((row, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <select
+                className="input w-32"
+                value={row.fy}
+                onChange={(e) => setFyLimits((rows) => rows.map((r, idx) => (idx === i ? { ...r, fy: e.target.value } : r)))}
+              >
+                {fyChoices.includes(row.fy) ? null : <option value={row.fy}>{row.fy}</option>}
+                {fyChoices.map((fy) => (
+                  <option key={fy} value={fy}>
+                    {fy}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input flex-1"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Limit ₹ (0 = no limit)"
+                value={row.amount}
+                onChange={(e) => setFyLimits((rows) => rows.map((r, idx) => (idx === i ? { ...r, amount: e.target.value } : r)))}
+              />
+              <button type="button" className="text-slate-400 hover:text-accent-600" onClick={() => setFyLimits((rows) => rows.filter((_, idx) => idx !== i))}>
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
       <label className="flex items-center gap-2 text-sm text-slate-600">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Active

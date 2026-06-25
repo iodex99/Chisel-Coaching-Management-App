@@ -12,6 +12,7 @@ import { m0003_core } from './0003_core'
 import { m0004_fees } from './0004_fees'
 import { m0005_expenses } from './0005_expenses'
 import { m0006_account_limits } from './0006_account_limits'
+import { m0007_account_fy_limits } from './0007_account_fy_limits'
 
 /** Ordered list of all migrations. Append new ones; never edit a shipped one. */
 export const MIGRATIONS: Migration[] = [
@@ -20,7 +21,8 @@ export const MIGRATIONS: Migration[] = [
   m0003_core,
   m0004_fees,
   m0005_expenses,
-  m0006_account_limits
+  m0006_account_limits,
+  m0007_account_fy_limits
 ]
 
 /**

@@ -44,9 +44,10 @@
 
 ### Payment tracking
 - Amount paid, recipient, payment mode and the **account** paid from.
-- Optional **per-vendor spending limit per financial year** on each account:
-  the expense form shows the remaining headroom, warns when close, and blocks
-  entries that would exceed it.
+- Optional **per-vendor spending limit per financial year** on each account
+  (a default plus year-specific overrides, since the cap can change yearly):
+  the expense form shows the remaining headroom for that year, warns when close,
+  and blocks entries that would exceed it.
 
 ### Reports & dashboard
 - Date-wise, category-wise, vendor-wise, account-wise and monthly summaries.

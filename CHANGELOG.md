@@ -4,6 +4,16 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.7]
+
+### Changed
+- **Per-financial-year vendor limits on accounts.** The account form now takes a
+  *default* per-vendor limit plus an editable list of **year-specific limits**
+  (e.g. 2026-27 → ₹50,000). When recording an expense, the cap is resolved for
+  the expense's own financial year (the year's override if set, otherwise the
+  default). The accounts list shows the limit in effect for the current year.
+  Migration `0007_account_fy_limits`.
+
 ## [1.0.6]
 
 ### Fixed / Changed — auto-update reworked

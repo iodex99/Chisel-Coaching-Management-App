@@ -1,5 +1,6 @@
 import { getDb } from '../db/database'
 import { financialYear, financialYearRange } from './fy'
+import { effectiveVendorLimit } from './account'
 import type {
   ExpenseCategory,
   Vendor,
@@ -21,7 +22,8 @@ export function vendorLimitInfo(
   dateISO: string,
   excludeExpenseId?: number
 ): VendorLimitInfo {
-  const limit = getDb().get<{ vendor_fy_limit: number }>('SELECT vendor_fy_limit FROM accounts WHERE id = ?', [accountId])?.vendor_fy_limit ?? 0
+  const fy = financialYear(dateISO)
+  const limit = effectiveVendorLimit(accountId, fy)
   const { start, end } = financialYearRange(dateISO)
   const params: (string | number)[] = [accountId, vendorId, start, end]
   let sql =
@@ -31,7 +33,7 @@ export function vendorLimitInfo(
     params.push(excludeExpenseId)
   }
   const spent = getDb().get<{ s: number }>(sql, params)?.s ?? 0
-  return { limit, spent, remaining: limit > 0 ? Math.max(0, limit - spent) : 0, fy: financialYear(dateISO) }
+  return { limit, spent, remaining: limit > 0 ? Math.max(0, limit - spent) : 0, fy }
 }
 
 /** Block an expense that would push a vendor over the account's FY limit. */

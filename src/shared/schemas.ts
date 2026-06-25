@@ -55,7 +55,11 @@ export const accountInputSchema = z.object({
   openingBalance: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
   notes: z.string().trim().max(500).optional(),
-  vendorFyLimit: z.number().int().min(0).default(0)
+  vendorFyLimit: z.number().int().min(0).default(0),
+  vendorFyLimits: z
+    .array(z.object({ fy: z.string().trim().min(4).max(10), limit: z.number().int().min(0) }))
+    .max(30)
+    .optional()
 })
 export const accountUpdateSchema = z.object({ id: z.number().int().positive(), input: accountInputSchema })
 

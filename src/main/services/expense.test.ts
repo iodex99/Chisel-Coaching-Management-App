@@ -95,4 +95,26 @@ describe('expenses', () => {
       expense.createExpense({ categoryId: cat.id, vendorId: v.id, accountId: free.id, mode: 'cash', expenseDate: '2026-06-01', amount: 9_999_999 })
     ).not.toThrow()
   })
+
+  it('uses a per-financial-year override when configured, else the default', () => {
+    const acct = accounts.createAccount({
+      name: 'Yearly',
+      type: 'bank',
+      openingBalance: 0,
+      isActive: true,
+      vendorFyLimit: 100000, // default ₹1000
+      vendorFyLimits: [{ fy: '2026-27', limit: 50000 }] // FY 2026-27 capped at ₹500
+    })
+    const v = expense.createVendor({ name: 'YearVendor' })
+    const cat = expense.listCategories()[0]
+    const base = { categoryId: cat.id, vendorId: v.id, accountId: acct.id, mode: 'cash' as const }
+
+    expect(expense.vendorLimitInfo(acct.id, v.id, '2026-06-01').limit).toBe(50000)
+    expect(() => expense.createExpense({ ...base, expenseDate: '2026-05-01', amount: 60000 })).toThrow(/exceeds/)
+    expense.createExpense({ ...base, expenseDate: '2026-05-01', amount: 50000 })
+
+    // The next FY has no override → falls back to the ₹1000 default.
+    expect(expense.vendorLimitInfo(acct.id, v.id, '2027-05-01').limit).toBe(100000)
+    expect(() => expense.createExpense({ ...base, expenseDate: '2027-05-01', amount: 90000 })).not.toThrow()
+  })
 })

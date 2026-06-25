@@ -73,6 +73,11 @@ export interface TwoFactorStatus {
 
 export type AccountType = 'cash' | 'bank' | 'upi' | 'other'
 
+export interface AccountFyLimit {
+  fy: string // e.g. '2026-27'
+  limit: number // paise; 0 = no limit for that year
+}
+
 export interface Account {
   id: number
   name: string
@@ -80,8 +85,10 @@ export interface Account {
   openingBalance: number // paise
   isActive: boolean
   notes: string | null
-  /** Max payable to a single vendor from this account per financial year (paise); 0 = no limit. */
+  /** Default per-vendor FY limit (paise) for years without a specific override; 0 = no limit. */
   vendorFyLimit: number
+  /** Per-financial-year overrides of the per-vendor limit. */
+  vendorFyLimits: AccountFyLimit[]
   createdAt: string
   updatedAt: string
 }
@@ -93,6 +100,7 @@ export interface AccountInput {
   isActive: boolean
   notes?: string
   vendorFyLimit?: number
+  vendorFyLimits?: AccountFyLimit[]
 }
 
 export interface VendorLimitInfo {
