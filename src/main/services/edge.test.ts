@@ -202,3 +202,38 @@ describe('service guards', () => {
     expect(() => accounts.deleteAccount(acct.id)).toThrow(/linked/)
   })
 })
+
+describe('list filtering & sorting', () => {
+  it('filters students by gender and sorts by admission no', () => {
+    const b = batch.createBatch({ name: 'SortB', defaultFee: 0, status: 'active' })
+    students.createStudent({ admissionNo: 'SORT-3', firstName: 'C', lastName: 'C', gender: 'female', status: 'active', batchId: b.id, guardians: [] })
+    students.createStudent({ admissionNo: 'SORT-1', firstName: 'A', lastName: 'A', gender: 'male', status: 'active', batchId: b.id, guardians: [] })
+    students.createStudent({ admissionNo: 'SORT-2', firstName: 'B', lastName: 'B', gender: 'female', status: 'active', batchId: b.id, guardians: [] })
+
+    const females = students.listStudents({ batchId: b.id, gender: 'female', status: 'all' })
+    expect(females.map((s) => s.admissionNo).sort()).toEqual(['SORT-2', 'SORT-3'])
+
+    const desc = students.listStudents({ batchId: b.id, status: 'all', sortBy: 'admissionNo', sortDir: 'desc' })
+    expect(desc.map((s) => s.admissionNo)).toEqual(['SORT-3', 'SORT-2', 'SORT-1'])
+  })
+
+  it('filters payments by account and sorts by amount', () => {
+    const acct = accounts.createAccount({ name: 'PaySort', type: 'cash', openingBalance: 0, isActive: true })
+    const s = students.createStudent({ admissionNo: 'PS-1', firstName: 'P', lastName: 'S', gender: 'male', status: 'active', guardians: [] })
+    payments.recordPayment({ studentId: s.id, amount: 100, paymentDate: '2028-06-01', mode: 'cash', accountId: acct.id })
+    payments.recordPayment({ studentId: s.id, amount: 300, paymentDate: '2028-06-02', mode: 'cash', accountId: acct.id })
+    payments.recordPayment({ studentId: s.id, amount: 200, paymentDate: '2028-06-03', mode: 'cash' }) // different account (none)
+
+    expect(payments.listPayments({ accountId: acct.id })).toHaveLength(2)
+    const byAmount = payments.listPayments({ accountId: acct.id, sortBy: 'amount', sortDir: 'desc' })
+    expect(byAmount.map((p) => p.amount)).toEqual([300, 100])
+  })
+
+  it('sorts expenses by amount within a date range', () => {
+    const cat = expense.listCategories()[0] ?? expense.createCategory('SortCat')
+    expense.createExpense({ expenseDate: '2028-06-01', categoryId: cat.id, amount: 1500, mode: 'cash' })
+    expense.createExpense({ expenseDate: '2028-06-02', categoryId: cat.id, amount: 500, mode: 'cash' })
+    const asc = expense.listExpenses({ dateFrom: '2028-06-01', dateTo: '2028-06-30', sortBy: 'amount', sortDir: 'asc' })
+    expect(asc.map((e) => e.amount)).toEqual([500, 1500])
+  })
+})

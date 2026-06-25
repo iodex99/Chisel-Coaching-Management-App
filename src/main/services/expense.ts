@@ -198,7 +198,16 @@ export function listExpenses(filter: ExpenseFilter = {}): ExpenseRecord[] {
     const q = `%${filter.search}%`
     params.push(q, q, q)
   }
-  let sql = `${SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY e.expense_date DESC, e.id DESC`
+  const dir = filter.sortDir === 'desc' ? 'DESC' : 'ASC'
+  const orderMap: Record<NonNullable<ExpenseFilter['sortBy']>, string> = {
+    date: `e.expense_date ${dir}, e.id ${dir}`,
+    amount: `e.amount ${dir}`,
+    category: `c.name ${dir}`,
+    vendor: `COALESCE(v.name, e.payee) ${dir}`,
+    account: `a.name ${dir}`
+  }
+  const orderBy = filter.sortBy ? orderMap[filter.sortBy] : 'e.expense_date DESC, e.id DESC'
+  let sql = `${SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${orderBy}`
   if (filter.limit) {
     sql += ' LIMIT ? OFFSET ?'
     params.push(Math.min(filter.limit, 500), filter.offset ?? 0)

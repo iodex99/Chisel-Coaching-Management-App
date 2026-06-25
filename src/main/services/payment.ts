@@ -161,17 +161,30 @@ export function listPayments(filter: PaymentFilter = {}): PaymentListItem[] {
     where.push('p.mode = ?')
     params.push(filter.mode)
   }
+  if (filter.accountId) {
+    where.push('p.account_id = ?')
+    params.push(filter.accountId)
+  }
   if (filter.search) {
     where.push('(p.receipt_no LIKE ? OR s.first_name LIKE ? OR s.last_name LIKE ?)')
     const q = `%${filter.search}%`
     params.push(q, q, q)
   }
+  const dir = filter.sortDir === 'desc' ? 'DESC' : 'ASC'
+  const orderMap: Record<NonNullable<PaymentFilter['sortBy']>, string> = {
+    date: `p.payment_date ${dir}, p.id ${dir}`,
+    amount: `p.amount ${dir}`,
+    receiptNo: `p.receipt_no ${dir}`,
+    student: `s.first_name ${dir}, s.last_name ${dir}`,
+    mode: `p.mode ${dir}`
+  }
+  const orderBy = filter.sortBy ? orderMap[filter.sortBy] : 'p.payment_date DESC, p.id DESC'
   let sql = `
     SELECT p.id, p.receipt_no, p.student_id, (s.first_name || ' ' || COALESCE(s.last_name, '')) AS student_name,
            p.payment_date, p.amount, p.mode, a.name AS account_name, p.is_cancelled
     FROM payments p JOIN students s ON s.id = p.student_id LEFT JOIN accounts a ON a.id = p.account_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-    ORDER BY p.payment_date DESC, p.id DESC`
+    ORDER BY ${orderBy}`
   if (filter.limit) {
     sql += ' LIMIT ? OFFSET ?'
     params.push(Math.min(filter.limit, 500), filter.offset ?? 0)

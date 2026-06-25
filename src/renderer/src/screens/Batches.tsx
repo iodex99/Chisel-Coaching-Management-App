@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import type { BatchSummary, BatchInput, BatchStatus } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
@@ -8,11 +8,38 @@ import { fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { DateField } from '../components/DateField'
+import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 
 export default function Batches(): JSX.Element {
   const { data: batches = [], isLoading } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
   const [editing, setEditing] = useState<BatchSummary | 'new' | null>(null)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | BatchStatus>('all')
+  const [sort, setSort] = useState<Sort>({ key: 'name', dir: 'asc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
+
+  const q = search.trim().toLowerCase()
+  const filtered = sortRows(
+    batches.filter(
+      (b) =>
+        (statusFilter === 'all' || b.status === statusFilter) &&
+        (!q || [b.name, b.courseName, b.academicYear].some((x) => (x ?? '').toLowerCase().includes(q)))
+    ),
+    sort,
+    (b, key) =>
+      key === 'course'
+        ? b.courseName
+        : key === 'year'
+          ? b.academicYear
+          : key === 'fee'
+            ? b.defaultFee
+            : key === 'students'
+              ? b.studentCount
+              : key === 'status'
+                ? b.status
+                : b.name
+  )
 
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ['batches'] })
 
@@ -40,28 +67,40 @@ export default function Batches(): JSX.Element {
       />
       {error && <p className="mb-3 text-sm text-accent-600">{error}</p>}
 
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+          <input className="input pl-9" placeholder="Search by batch, course or year" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <select className="input w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | BatchStatus)}>
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Batch</th>
-              <th className="px-4 py-3">Course</th>
-              <th className="px-4 py-3">Year</th>
-              <th className="px-4 py-3 text-right">Default fee</th>
-              <th className="px-4 py-3 text-center">Students</th>
-              <th className="px-4 py-3">Status</th>
+              <SortableTh label="Batch" sortKey="name" sort={sort} onSort={onSort} />
+              <SortableTh label="Course" sortKey="course" sort={sort} onSort={onSort} />
+              <SortableTh label="Year" sortKey="year" sort={sort} onSort={onSort} />
+              <SortableTh label="Default fee" sortKey="fee" sort={sort} onSort={onSort} align="right" />
+              <SortableTh label="Students" sortKey="students" sort={sort} onSort={onSort} align="center" />
+              <SortableTh label="Status" sortKey="status" sort={sort} onSort={onSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {!isLoading && batches.length === 0 && (
+            {!isLoading && filtered.length === 0 && (
               <tr>
                 <td className="px-4 py-6 text-slate-400" colSpan={7}>
-                  No batches yet.
+                  No batches found.
                 </td>
               </tr>
             )}
-            {batches.map((b) => (
+            {filtered.map((b) => (
               <tr key={b.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-medium text-slate-700">{b.name}</td>
                 <td className="px-4 py-3 text-slate-500">{b.courseName || '—'}</td>

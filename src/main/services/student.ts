@@ -60,16 +60,28 @@ export function listStudents(filter: StudentFilter = {}): StudentListItem[] {
     where.push('s.batch_id = ?')
     params.push(filter.batchId)
   }
+  if (filter.gender) {
+    where.push('s.gender = ?')
+    params.push(filter.gender)
+  }
   if (filter.search) {
-    where.push('(s.first_name LIKE ? OR s.last_name LIKE ? OR s.admission_no LIKE ? OR s.phone LIKE ?)')
+    where.push('(s.first_name LIKE ? OR s.last_name LIKE ? OR s.admission_no LIKE ? OR s.phone LIKE ? OR s.email LIKE ?)')
     const q = `%${filter.search}%`
-    params.push(q, q, q, q)
+    params.push(q, q, q, q, q)
+  }
+  const dir = filter.sortDir === 'desc' ? 'DESC' : 'ASC'
+  const orderBy: Record<NonNullable<StudentFilter['sortBy']>, string> = {
+    name: `s.first_name ${dir}, s.last_name ${dir}`,
+    admissionNo: `s.admission_no ${dir}`,
+    admissionDate: `s.admission_date ${dir}`,
+    createdAt: `s.created_at ${dir}`,
+    batch: `b.name ${dir}`
   }
   let sql = `
     SELECT s.id, s.admission_no, s.first_name, s.last_name, s.phone, s.status, s.batch_id, b.name AS batch_name
     FROM students s LEFT JOIN batches b ON b.id = s.batch_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-    ORDER BY s.first_name, s.last_name`
+    ORDER BY ${orderBy[filter.sortBy ?? 'name']}`
   if (filter.limit) {
     sql += ' LIMIT ? OFFSET ?'
     params.push(Math.min(filter.limit, 500), filter.offset ?? 0)

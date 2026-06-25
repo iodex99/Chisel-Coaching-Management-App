@@ -10,6 +10,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { Pager, PAGE_SIZE } from '../components/Pager'
 import { DateField } from '../components/DateField'
+import { SortableTh, toggleSort, type Sort } from '../components/SortableTh'
 
 const todayStr = (): string => todayIso()
 const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value === m)?.label ?? m
@@ -19,18 +20,30 @@ export default function Expenses(): JSX.Element {
   const [manage, setManage] = useState<'' | 'categories' | 'vendors'>('')
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState<number | ''>('')
+  const [vendorId, setVendorId] = useState<number | ''>('')
+  const [accountId, setAccountId] = useState<number | ''>('')
+  const [mode, setMode] = useState<PaymentMode | 'all'>('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [sort, setSort] = useState<Sort>({ key: 'date', dir: 'desc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
 
   const { data: summary } = useQuery({ queryKey: ['expense-summary'], queryFn: () => api.expenses.summary() })
   const { data: categories = [] } = useQuery({ queryKey: ['expense-categories'], queryFn: () => api.expenseCategories.list() })
+  const { data: vendors = [] } = useQuery({ queryKey: ['vendors'], queryFn: () => api.vendors.list() })
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: () => api.accounts.list() })
   const [page, setPage] = useState(0)
-  useEffect(() => setPage(0), [search, categoryId, dateFrom, dateTo])
+  useEffect(() => setPage(0), [search, categoryId, vendorId, accountId, mode, dateFrom, dateTo, sort])
   const filter = {
     search: search || undefined,
     categoryId: categoryId === '' ? undefined : categoryId,
+    vendorId: vendorId === '' ? undefined : vendorId,
+    accountId: accountId === '' ? undefined : accountId,
+    mode,
     dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined
+    dateTo: dateTo || undefined,
+    sortBy: sort.key as 'date' | 'amount' | 'category' | 'vendor' | 'account',
+    sortDir: sort.dir
   }
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses', filter, page],
@@ -94,7 +107,7 @@ export default function Expenses(): JSX.Element {
           <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
           <input className="input pl-9" placeholder="Search payee / vendor / remarks" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="input w-44" value={categoryId} onChange={(e) => setCategoryId(e.target.value === '' ? '' : Number(e.target.value))}>
+        <select className="input w-40" value={categoryId} onChange={(e) => setCategoryId(e.target.value === '' ? '' : Number(e.target.value))}>
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
@@ -102,11 +115,35 @@ export default function Expenses(): JSX.Element {
             </option>
           ))}
         </select>
-        <div className="w-40">
+        <select className="input w-40" value={vendorId} onChange={(e) => setVendorId(e.target.value === '' ? '' : Number(e.target.value))}>
+          <option value="">All vendors</option>
+          {vendors.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+        <select className="input w-40" value={accountId} onChange={(e) => setAccountId(e.target.value === '' ? '' : Number(e.target.value))}>
+          <option value="">All accounts</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <select className="input w-36" value={mode} onChange={(e) => setMode(e.target.value as PaymentMode | 'all')}>
+          <option value="all">All modes</option>
+          {PAYMENT_MODES.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <div className="w-36">
           <label className="label">From</label>
           <DateField value={dateFrom} onChange={setDateFrom} />
         </div>
-        <div className="w-40">
+        <div className="w-36">
           <label className="label">To</label>
           <DateField value={dateTo} onChange={setDateTo} />
         </div>
@@ -116,12 +153,12 @@ export default function Expenses(): JSX.Element {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Payee / Vendor</th>
-              <th className="px-4 py-3 text-right">Amount</th>
+              <SortableTh label="Date" sortKey="date" sort={sort} onSort={onSort} />
+              <SortableTh label="Category" sortKey="category" sort={sort} onSort={onSort} />
+              <SortableTh label="Payee / Vendor" sortKey="vendor" sort={sort} onSort={onSort} />
+              <SortableTh label="Amount" sortKey="amount" sort={sort} onSort={onSort} align="right" />
               <th className="px-4 py-3">Mode</th>
-              <th className="px-4 py-3">Account</th>
+              <SortableTh label="Account" sortKey="account" sort={sort} onSort={onSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>

@@ -125,10 +125,15 @@ const pageFields = {
   offset: z.number().int().min(0).optional()
 }
 
+const sortDir = z.enum(['asc', 'desc']).optional()
+
 export const studentFilterSchema = z.object({
   search: z.string().trim().max(80).optional(),
   batchId: z.number().int().positive().nullable().optional(),
   status: z.enum(['active', 'inactive', 'dropped', 'completed', 'all']).optional(),
+  gender: z.string().trim().max(10).optional(),
+  sortBy: z.enum(['name', 'admissionNo', 'admissionDate', 'createdAt', 'batch']).optional(),
+  sortDir,
   ...pageFields
 })
 
@@ -189,8 +194,11 @@ export const paymentFilterSchema = z.object({
   dateFrom: z.string().trim().max(10).optional(),
   dateTo: z.string().trim().max(10).optional(),
   mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
+  accountId: z.number().int().positive().nullable().optional(),
   search: z.string().trim().max(80).optional(),
   includeCancelled: z.boolean().optional(),
+  sortBy: z.enum(['date', 'amount', 'receiptNo', 'student', 'mode']).optional(),
+  sortDir,
   ...pageFields
 })
 
@@ -247,6 +255,8 @@ export const expenseFilterSchema = z.object({
   accountId: z.number().int().positive().nullable().optional(),
   mode: z.enum(['cash', 'upi', 'bank_transfer', 'cheque', 'other', 'all']).optional(),
   search: z.string().trim().max(80).optional(),
+  sortBy: z.enum(['date', 'amount', 'category', 'vendor', 'account']).optional(),
+  sortDir,
   ...pageFields
 })
 

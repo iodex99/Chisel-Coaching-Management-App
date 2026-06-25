@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Plus, Search } from 'lucide-react'
 import type { PaymentFilter, PaymentMode } from '@shared/types'
 import { PAYMENT_MODES } from '@shared/constants'
+import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { DateField } from '../components/DateField'
@@ -13,14 +15,18 @@ export default function Payments(): JSX.Element {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [mode, setMode] = useState<PaymentMode | 'all'>('all')
+  const [accountId, setAccountId] = useState<number | ''>('')
   const [includeCancelled, setIncludeCancelled] = useState(false)
   const [recording, setRecording] = useState(false)
+
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: () => api.accounts.list() })
 
   const filter: PaymentFilter = {
     search: search || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     mode,
+    accountId: accountId === '' ? undefined : accountId,
     includeCancelled
   }
 
@@ -54,6 +60,14 @@ export default function Payments(): JSX.Element {
           {PAYMENT_MODES.map((m) => (
             <option key={m.value} value={m.value}>
               {m.label}
+            </option>
+          ))}
+        </select>
+        <select className="input w-44" value={accountId} onChange={(e) => setAccountId(e.target.value === '' ? '' : Number(e.target.value))}>
+          <option value="">All accounts</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
             </option>
           ))}
         </select>

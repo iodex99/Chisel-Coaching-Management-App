@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 import { ImportPanel } from './ImportPanel'
 import { FeePlanEditor } from './FeePlan'
 import { fmtDate, fmtMoney } from '../lib/format'
@@ -14,12 +15,49 @@ export default function Fees(): JSX.Element {
   const nav = useNavigate()
   const [importing, setImporting] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [search, setSearch] = useState('')
+  const [batchName, setBatchName] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'outstanding' | 'overdue' | 'paid'>('all')
+  const [sort, setSort] = useState<Sort>({ key: 'outstanding', dir: 'desc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
   const { data: summaries = [], isLoading } = useQuery({ queryKey: ['fee-summaries'], queryFn: () => api.fees.summaries() })
 
   const refreshFees = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['fee-summaries'] })
     void queryClient.invalidateQueries({ queryKey: ['fee-plan'] })
   }
+
+  const batchNames = Array.from(new Set(summaries.map((s) => s.batchName).filter(Boolean))) as string[]
+  const q = search.trim().toLowerCase()
+  const rows = sortRows(
+    summaries.filter((s) => {
+      if (batchName && s.batchName !== batchName) return false
+      if (statusFilter === 'outstanding' && s.outstanding <= 0) return false
+      if (statusFilter === 'overdue' && s.overdueCount <= 0) return false
+      if (statusFilter === 'paid' && s.outstanding > 0) return false
+      if (!q) return true
+      return (
+        s.admissionNo.toLowerCase().includes(q) ||
+        `${s.firstName} ${s.lastName ?? ''}`.toLowerCase().includes(q) ||
+        (s.batchName ?? '').toLowerCase().includes(q)
+      )
+    }),
+    sort,
+    (s, key) =>
+      key === 'admissionNo'
+        ? s.admissionNo
+        : key === 'student'
+          ? `${s.firstName} ${s.lastName ?? ''}`
+          : key === 'batch'
+            ? s.batchName
+            : key === 'net'
+              ? s.net
+              : key === 'paid'
+                ? s.paid
+                : key === 'nextDue'
+                  ? s.nextDueDate
+                  : s.outstanding
+  )
 
   const totals = summaries.reduce(
     (acc, s) => ({ net: acc.net + s.net, paid: acc.paid + s.paid, outstanding: acc.outstanding + s.outstanding }),
@@ -49,28 +87,51 @@ export default function Fees(): JSX.Element {
         <Kpi label="Outstanding" value={fmtMoney(totals.outstanding)} tone="text-accent-600" />
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+          <input className="input pl-9" placeholder="Search by student, admission no or batch" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <select className="input w-48" value={batchName} onChange={(e) => setBatchName(e.target.value)}>
+          <option value="">All batches</option>
+          {batchNames.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <select className="input w-44" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'outstanding' | 'overdue' | 'paid')}>
+          <option value="all">All</option>
+          <option value="outstanding">Has outstanding</option>
+          <option value="overdue">Has overdue</option>
+          <option value="paid">Fully paid</option>
+        </select>
+      </div>
+
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Adm. No</th>
-              <th className="px-4 py-3">Student</th>
-              <th className="px-4 py-3">Batch</th>
-              <th className="px-4 py-3 text-right">Net</th>
-              <th className="px-4 py-3 text-right">Paid</th>
-              <th className="px-4 py-3 text-right">Outstanding</th>
-              <th className="px-4 py-3">Next due</th>
+              <SortableTh label="Adm. No" sortKey="admissionNo" sort={sort} onSort={onSort} />
+              <SortableTh label="Student" sortKey="student" sort={sort} onSort={onSort} />
+              <SortableTh label="Batch" sortKey="batch" sort={sort} onSort={onSort} />
+              <SortableTh label="Net" sortKey="net" sort={sort} onSort={onSort} align="right" />
+              <SortableTh label="Paid" sortKey="paid" sort={sort} onSort={onSort} align="right" />
+              <SortableTh label="Outstanding" sortKey="outstanding" sort={sort} onSort={onSort} align="right" />
+              <SortableTh label="Next due" sortKey="nextDue" sort={sort} onSort={onSort} />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {!isLoading && summaries.length === 0 && (
+            {!isLoading && rows.length === 0 && (
               <tr>
                 <td className="px-4 py-6 text-slate-400" colSpan={7}>
-                  No fee plans yet. Use “New fee plan” above, or open a student and create one.
+                  {summaries.length === 0
+                    ? 'No fee plans yet. Use “New fee plan” above, or open a student and create one.'
+                    : 'No fee plans match your filters.'}
                 </td>
               </tr>
             )}
-            {summaries.map((s) => (
+            {rows.map((s) => (
               <tr key={s.studentId} className="cursor-pointer hover:bg-slate-50" onClick={() => nav(`/students/${s.studentId}`)}>
                 <td className="px-4 py-3 font-mono text-slate-500">{s.admissionNo}</td>
                 <td className="px-4 py-3 font-medium text-slate-700">

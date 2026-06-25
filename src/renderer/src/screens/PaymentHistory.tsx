@@ -7,6 +7,7 @@ import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtDate, fmtMoney } from '../lib/format'
 import { ReceiptActions } from '../components/ReceiptActions'
+import { SortableTh, toggleSort, type Sort } from '../components/SortableTh'
 import { Pager, PAGE_SIZE } from '../components/Pager'
 import { Modal } from '../components/Modal'
 
@@ -14,11 +15,20 @@ const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value 
 
 export function PaymentHistory({ filter, showStudent = true }: { filter: PaymentFilter; showStudent?: boolean }): JSX.Element {
   const [page, setPage] = useState(0)
+  const [sort, setSort] = useState<Sort>({ key: 'date', dir: 'desc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
   const filterKey = JSON.stringify(filter)
-  useEffect(() => setPage(0), [filterKey])
+  useEffect(() => setPage(0), [filterKey, sort])
   const { data: payments = [], isLoading } = useQuery({
-    queryKey: ['payments', filterKey, page],
-    queryFn: () => api.payments.list({ ...filter, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+    queryKey: ['payments', filterKey, sort, page],
+    queryFn: () =>
+      api.payments.list({
+        ...filter,
+        sortBy: sort.key as PaymentFilter['sortBy'],
+        sortDir: sort.dir,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE
+      })
   })
 
   const [cancelling, setCancelling] = useState<PaymentListItem | null>(null)
@@ -51,11 +61,11 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
-            <th className="px-4 py-3">Receipt</th>
-            <th className="px-4 py-3">Date</th>
-            {showStudent && <th className="px-4 py-3">Student</th>}
-            <th className="px-4 py-3 text-right">Amount</th>
-            <th className="px-4 py-3">Mode</th>
+            <SortableTh label="Receipt" sortKey="receiptNo" sort={sort} onSort={onSort} />
+            <SortableTh label="Date" sortKey="date" sort={sort} onSort={onSort} />
+            {showStudent && <SortableTh label="Student" sortKey="student" sort={sort} onSort={onSort} />}
+            <SortableTh label="Amount" sortKey="amount" sort={sort} onSort={onSort} align="right" />
+            <SortableTh label="Mode" sortKey="mode" sort={sort} onSort={onSort} />
             <th className="px-4 py-3">Account</th>
             <th className="px-4 py-3 text-right">Actions</th>
           </tr>

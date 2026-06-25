@@ -82,6 +82,12 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   await page.getByRole('button', { name: 'Load sample data' }).click()
   await expect(page.getByText(/Loaded sample data/)).toBeVisible({ timeout: 20000 })
 
+  // --- Students: a sortable header round-trips to the backend on the seeded list ---
+  await page.getByRole('link', { name: 'Students' }).click()
+  await expect(page.getByText('Aarav Sharma')).toBeVisible()
+  await page.getByRole('button', { name: /^Name/ }).click()
+  await expect(page.getByText('Aarav Sharma')).toBeVisible()
+
   // --- Fees now shows seeded plans, and "New fee plan" search finds students ---
   await page.getByRole('link', { name: 'Fees' }).click()
   await expect(page.getByText('Aarav Sharma')).toBeVisible()

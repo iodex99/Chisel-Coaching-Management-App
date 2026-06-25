@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileDown, FileText, FileSpreadsheet } from 'lucide-react'
+import { FileDown, FileText, FileSpreadsheet, Search } from 'lucide-react'
 import type { ReportColumn, ReportResult, ReportType } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { DateField } from '../components/DateField'
+import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 import { fmtDate, fmtMoney, isoToDisplay } from '../lib/format'
 
 const REPORTS: { value: ReportType; label: string; group: 'Fees' | 'Expenses' }[] = [
@@ -39,11 +40,25 @@ export default function Reports(): JSX.Element {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [error, setError] = useState('')
+  const [rowSearch, setRowSearch] = useState('')
+  const [sort, setSort] = useState<Sort>({ key: '', dir: 'asc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
+  // A different report has different columns, so reset the row filter/sort.
+  useEffect(() => {
+    setRowSearch('')
+    setSort({ key: '', dir: 'asc' })
+  }, [type])
 
   const { data, isLoading } = useQuery({
     queryKey: ['report', type, from, to],
     queryFn: () => api.reports.get({ type, from: from || undefined, to: to || undefined })
   })
+
+  const cols = data?.columns ?? []
+  const sq = rowSearch.trim().toLowerCase()
+  let viewRows = data?.rows ?? []
+  if (sq) viewRows = viewRows.filter((row) => cols.some((c) => fmtCell(row[c.key], c).toLowerCase().includes(sq)))
+  if (sort.key) viewRows = sortRows(viewRows, sort, (row, key) => row[key])
 
   function exportCsv(result: ReportResult): void {
     const header = result.columns.map((c) => c.label).join(',')
@@ -120,6 +135,12 @@ export default function Reports(): JSX.Element {
         <button className="btn-outline" onClick={() => void exportPdf()} disabled={!data}>
           <FileText size={16} /> PDF
         </button>
+        {data && data.rows.length > 0 && (
+          <div className="relative ml-auto min-w-[200px]">
+            <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+            <input className="input pl-9" placeholder="Filter rows" value={rowSearch} onChange={(e) => setRowSearch(e.target.value)} />
+          </div>
+        )}
       </div>
 
       {error && <p className="mb-3 text-sm text-accent-600">{error}</p>}
@@ -128,10 +149,15 @@ export default function Reports(): JSX.Element {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              {data?.columns.map((c) => (
-                <th key={c.key} className={`px-4 py-3 ${c.align === 'right' ? 'text-right' : ''}`}>
-                  {c.label}
-                </th>
+              {cols.map((c) => (
+                <SortableTh
+                  key={c.key}
+                  label={c.label}
+                  sortKey={c.key}
+                  sort={sort}
+                  onSort={onSort}
+                  align={c.align === 'right' ? 'right' : 'left'}
+                />
               ))}
             </tr>
           </thead>
@@ -143,16 +169,16 @@ export default function Reports(): JSX.Element {
                 </td>
               </tr>
             )}
-            {data && data.rows.length === 0 && (
+            {data && viewRows.length === 0 && (
               <tr>
                 <td className="px-4 py-6 text-slate-400" colSpan={data.columns.length}>
-                  No data for this report.
+                  {data.rows.length === 0 ? 'No data for this report.' : 'No rows match your filter.'}
                 </td>
               </tr>
             )}
-            {data?.rows.map((row, i) => (
+            {viewRows.map((row, i) => (
               <tr key={i} className="hover:bg-slate-50">
-                {data.columns.map((c) => (
+                {cols.map((c) => (
                   <td key={c.key} className={`px-4 py-2.5 ${c.align === 'right' ? 'text-right' : ''}`}>
                     {fmtCell(row[c.key], c)}
                   </td>

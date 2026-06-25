@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, Upload } from 'lucide-react'
-import type { StudentStatus } from '@shared/types'
+import type { StudentFilter, StudentStatus } from '@shared/types'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
+import { SortableTh, toggleSort, type Sort } from '../components/SortableTh'
 import { Pager, PAGE_SIZE } from '../components/Pager'
 import { Modal } from '../components/Modal'
 import { ImportPanel } from './ImportPanel'
@@ -21,19 +22,25 @@ export default function Students(): JSX.Element {
   const [search, setSearch] = useState('')
   const [batchId, setBatchId] = useState<number | ''>('')
   const [status, setStatus] = useState<StudentStatus | 'all'>('active')
+  const [gender, setGender] = useState('')
+  const [sort, setSort] = useState<Sort>({ key: 'name', dir: 'asc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
 
   const [page, setPage] = useState(0)
   const [importing, setImporting] = useState(false)
-  useEffect(() => setPage(0), [search, batchId, status])
+  useEffect(() => setPage(0), [search, batchId, status, gender, sort])
 
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students', search, batchId, status, page],
+    queryKey: ['students', search, batchId, status, gender, sort, page],
     queryFn: () =>
       api.students.list({
         search: search || undefined,
         batchId: batchId === '' ? undefined : batchId,
         status,
+        gender: gender || undefined,
+        sortBy: sort.key as StudentFilter['sortBy'],
+        sortDir: sort.dir,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE
       })
@@ -81,15 +88,21 @@ export default function Students(): JSX.Element {
           <option value="dropped">Dropped</option>
           <option value="completed">Completed</option>
         </select>
+        <select className="input w-36" value={gender} onChange={(e) => setGender(e.target.value)}>
+          <option value="">All genders</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
       </div>
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Adm. No</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Batch</th>
+              <SortableTh label="Adm. No" sortKey="admissionNo" sort={sort} onSort={onSort} />
+              <SortableTh label="Name" sortKey="name" sort={sort} onSort={onSort} />
+              <SortableTh label="Batch" sortKey="batch" sort={sort} onSort={onSort} />
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Status</th>
             </tr>

@@ -214,10 +214,15 @@ export interface StudentInput {
   guardians: GuardianInput[]
 }
 
+export type SortDir = 'asc' | 'desc'
+
 export interface StudentFilter {
   search?: string
   batchId?: number | null
   status?: StudentStatus | 'all'
+  gender?: string
+  sortBy?: 'name' | 'admissionNo' | 'admissionDate' | 'createdAt' | 'batch'
+  sortDir?: SortDir
   limit?: number
   offset?: number
 }
@@ -349,8 +354,11 @@ export interface PaymentFilter {
   dateFrom?: string
   dateTo?: string
   mode?: PaymentMode | 'all'
+  accountId?: number | null
   search?: string
   includeCancelled?: boolean
+  sortBy?: 'date' | 'amount' | 'receiptNo' | 'student' | 'mode'
+  sortDir?: SortDir
   limit?: number
   offset?: number
 }
@@ -442,6 +450,8 @@ export interface ExpenseFilter {
   accountId?: number | null
   mode?: PaymentMode | 'all'
   search?: string
+  sortBy?: 'date' | 'amount' | 'category' | 'vendor' | 'account'
+  sortDir?: SortDir
   limit?: number
   offset?: number
 }

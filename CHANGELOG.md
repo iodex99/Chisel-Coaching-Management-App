@@ -4,6 +4,28 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.14]
+
+### Added
+- **Filters, sorting and search across every module** — click any column header
+  to sort (click again to reverse), plus the filters below:
+  - **Students:** added a **gender** filter; sortable by Adm. No / Name / Batch;
+    search now also matches email.
+  - **Payments:** added an **account** filter; sortable by Receipt / Date /
+    Student / Amount / Mode.
+  - **Expenses:** added **vendor**, **account** and **mode** filters; sortable by
+    Date / Category / Payee-Vendor / Amount / Account.
+  - **Batches:** added **search** (batch / course / year) and a **status**
+    filter; sortable on every column.
+  - **Fees:** added **search**, a **batch** filter and a **status** filter
+    (has outstanding / has overdue / fully paid); sortable on every column.
+  - **Accounts:** added **search**, **type** and **status** filters; sortable on
+    every column.
+  - **Due Monitoring:** added **search** and a **batch** filter; both the overdue
+    and upcoming tables are sortable.
+  - **Reports:** every report table is now sortable, with a **“filter rows”**
+    search box to narrow any report.
+
 ## [1.0.13]
 
 ### Added

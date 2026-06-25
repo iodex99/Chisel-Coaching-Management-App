@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import type { Account, AccountInput, AccountType } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
@@ -8,6 +8,7 @@ import { fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
 import { currentFy, fyOptions } from '../lib/fy'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 
 /** The per-vendor limit that applies to an account this financial year. */
 function effectiveLimit(a: Account): number {
@@ -26,6 +27,32 @@ export default function Accounts(): JSX.Element {
   const { data: accounts = [], isLoading } = useQuery({ queryKey: ['accounts'], queryFn: () => api.accounts.list() })
   const [editing, setEditing] = useState<Account | 'new' | null>(null)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | AccountType>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [sort, setSort] = useState<Sort>({ key: 'name', dir: 'asc' })
+  const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
+
+  const q = search.trim().toLowerCase()
+  const filtered = sortRows(
+    accounts.filter(
+      (a) =>
+        (typeFilter === 'all' || a.type === typeFilter) &&
+        (statusFilter === 'all' || (statusFilter === 'active' ? a.isActive : !a.isActive)) &&
+        (!q || a.name.toLowerCase().includes(q))
+    ),
+    sort,
+    (a, key) =>
+      key === 'type'
+        ? a.type
+        : key === 'opening'
+          ? a.openingBalance
+          : key === 'limit'
+            ? effectiveLimit(a)
+            : key === 'status'
+              ? (a.isActive ? 1 : 0)
+              : a.name
+  )
 
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ['accounts'] })
 
@@ -53,15 +80,35 @@ export default function Accounts(): JSX.Element {
       />
       {error && <p className="mb-3 text-sm text-accent-600">{error}</p>}
 
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+          <input className="input pl-9" placeholder="Search accounts by name" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <select className="input w-36" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as 'all' | AccountType)}>
+          <option value="all">All types</option>
+          {TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <select className="input w-36" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}>
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3 text-right">Opening balance</th>
-              <th className="px-4 py-3 text-right">Vendor limit / FY</th>
-              <th className="px-4 py-3">Status</th>
+              <SortableTh label="Name" sortKey="name" sort={sort} onSort={onSort} />
+              <SortableTh label="Type" sortKey="type" sort={sort} onSort={onSort} />
+              <SortableTh label="Opening balance" sortKey="opening" sort={sort} onSort={onSort} align="right" />
+              <SortableTh label="Vendor limit / FY" sortKey="limit" sort={sort} onSort={onSort} align="right" />
+              <SortableTh label="Status" sortKey="status" sort={sort} onSort={onSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -73,14 +120,14 @@ export default function Accounts(): JSX.Element {
                 </td>
               </tr>
             )}
-            {!isLoading && accounts.length === 0 && (
+            {!isLoading && filtered.length === 0 && (
               <tr>
                 <td className="px-4 py-6 text-slate-400" colSpan={6}>
-                  No accounts yet. Create one to start recording payments.
+                  {accounts.length === 0 ? 'No accounts yet. Create one to start recording payments.' : 'No accounts match your filters.'}
                 </td>
               </tr>
             )}
-            {accounts.map((a) => (
+            {filtered.map((a) => (
               <tr key={a.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-medium text-slate-700">{a.name}</td>
                 <td className="px-4 py-3 uppercase text-slate-500">{a.type}</td>

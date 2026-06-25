@@ -62,6 +62,9 @@
   and out and produce account-wise summaries.
 - **Settings** holds the institute profile, receipt format, currency (₹) and
   preferences used across modules.
+- **Filtering, sorting and search** are available on every list (students,
+  batches, fees, payments, due monitoring, expenses, accounts, reports): a search
+  box, the relevant dropdown filters, and click-to-sort column headers.
 
 ## Status
 
