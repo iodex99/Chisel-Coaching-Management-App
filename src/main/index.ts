@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import log from 'electron-log/main'
-import { ensureDataDirs, dataPath } from './paths'
+import { ensureDataDirs, migrateLegacyData, dataPath } from './paths'
 import { registerIpc } from './ipc'
 import { autoBackupOnExit } from './services/backup'
 import { setStatusWindow } from './services/update'
@@ -62,6 +62,7 @@ if (!gotLock) {
   })
 
   app.whenReady().then(() => {
+    migrateLegacyData()
     ensureDataDirs()
     configureLogging()
     registerIpc()

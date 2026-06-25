@@ -7,47 +7,48 @@ CI (`release.yml`) produces a single **installer** — `Chisel-Coaching-Setup-<v
 
 - It is a **per-user** install (no administrator rights needed) and lets the
   user pick the install folder.
-- The app keeps all its data in a `data/` sub-folder **next to the installed
-  executable** (a writable per-user location), so the whole folder remains
-  copyable to a USB drive, and the in-app updater can swap program files in place
-  while preserving `data/`.
+- The app keeps all its data in a `data/` folder under the per-user **userData**
+  location (`%APPDATA%\chisel-coaching-management\data`) — **separate from the
+  install folder** so auto-updates can never wipe it. electron-builder also
+  uploads `latest.yml` + the installer's blockmap, which the in-app updater
+  consumes.
 
-The release also includes `chisel-<version>.zip` (the raw program folder) +
-`latest.json`, which the in-app updater consumes — not needed for manual install.
+## Data folder
 
-## Portable folder model
-
-The installed folder (or the zip) contains the executable plus a `data/`
-sub-folder:
+All data lives in one folder (path + an **Open folder** button are in
+**Settings → Data & backups**):
 
 ```
-Chisel Coaching/
-  Chisel Coaching.exe
-  resources/ ...            program files (replaced on update)
-  data/                     YOUR DATA (never replaced on update)
-    chisel.db               encrypted database
-    keyfile.json            non-secret KDF params + verifier
-    receipts/               generated receipt PDFs
-    backups/                timestamped DB backups
-    updates/                transient update staging
-    logs/                   application logs
+%APPDATA%\chisel-coaching-management\data\
+  chisel.db        encrypted database
+  keyfile.json     non-secret KDF params + lockout state
+  receipts/        generated receipt PDFs
+  backups/         timestamped DB backups
+  exports/         report/CSV/Excel exports + import templates
+  logs/            application logs
 ```
 
-### Run from a USB drive
-1. Copy the whole `Chisel Coaching/` folder to the USB drive.
-2. Run `Chisel Coaching.exe` from the drive on any Windows PC.
-3. Log in with the master password. All data is present; the app resumes where
-   it left off.
+### Moving to another PC
+Install the app on the other PC, then either copy this `data` folder across, or
+use **Backup → Restore**.
 
-> On a **new** machine, 2FA will be required even if "trusted device" was set on
-> the original PC — trust is bound to the machine, not the portable data (see
+> On a **new** machine, 2FA is required even if "trusted device" was set on the
+> original PC — trust is bound to the machine, not the data (see
 > [SECURITY.md](SECURITY.md)).
 
 ## Data path resolution
 
 `src/main/paths.ts::resolveDataDir()`:
-- **Packaged:** `<folder of the .exe>/data`.
+- **Packaged:** `%APPDATA%\chisel-coaching-management\data` (Electron `userData`).
+  This is **outside** the install folder, so NSIS auto-updates — which clean and
+  replace the install directory — never touch your data. (Earlier builds stored
+  data next to the .exe, inside the install folder, which caused data loss on
+  update; `migrateLegacyData()` copies any such old data into the new location on
+  first launch.)
 - **Dev:** `<project root>/data` (git-ignored).
+
+To move data to another PC: copy the `data` folder (its path + an **Open folder**
+button are in **Settings → Data & backups**), or use **Backup → Restore**.
 
 ## Backup & restore
 

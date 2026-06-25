@@ -4,6 +4,17 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.8]
+
+### Fixed — data was lost on update
+- The data folder used to live **inside the install directory**, which the NSIS
+  auto-update cleans/replaces — wiping or orphaning the data and forcing a fresh
+  sign-up. Data now lives in a per-user location **outside** the install folder
+  (`%APPDATA%\chisel-coaching-management\data`) that updates never touch.
+- Added a one-time **migration** that copies data from the old install-folder
+  location into the new safe location on first launch — so existing data is
+  recovered, not lost.
+
 ## [1.0.7]
 
 ### Changed
