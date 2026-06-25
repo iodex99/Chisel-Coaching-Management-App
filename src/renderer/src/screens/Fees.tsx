@@ -1,17 +1,25 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Upload } from 'lucide-react'
+import { Upload, Plus } from 'lucide-react'
 import { api } from '../lib/api'
+import { queryClient } from '../lib/queryClient'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { ImportPanel } from './ImportPanel'
+import { FeePlanEditor } from './FeePlan'
 import { fmtDate, fmtMoney } from '../lib/format'
 
 export default function Fees(): JSX.Element {
   const nav = useNavigate()
   const [importing, setImporting] = useState(false)
+  const [creating, setCreating] = useState(false)
   const { data: summaries = [], isLoading } = useQuery({ queryKey: ['fee-summaries'], queryFn: () => api.fees.summaries() })
+
+  const refreshFees = (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['fee-summaries'] })
+    void queryClient.invalidateQueries({ queryKey: ['fee-plan'] })
+  }
 
   const totals = summaries.reduce(
     (acc, s) => ({ net: acc.net + s.net, paid: acc.paid + s.paid, outstanding: acc.outstanding + s.outstanding }),
@@ -24,9 +32,14 @@ export default function Fees(): JSX.Element {
         title="Fees"
         subtitle="Fee plans and outstanding balances across all students."
         actions={
-          <button className="btn-outline" onClick={() => setImporting(true)}>
-            <Upload size={16} /> Import fee plans
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-outline" onClick={() => setImporting(true)}>
+              <Upload size={16} /> Import fee plans
+            </button>
+            <button className="btn-primary" onClick={() => setCreating(true)}>
+              <Plus size={16} /> New fee plan
+            </button>
+          </div>
         }
       />
 
@@ -53,7 +66,7 @@ export default function Fees(): JSX.Element {
             {!isLoading && summaries.length === 0 && (
               <tr>
                 <td className="px-4 py-6 text-slate-400" colSpan={7}>
-                  No fee plans yet. Open a student and create a fee plan.
+                  No fee plans yet. Use “New fee plan” above, or open a student and create one.
                 </td>
               </tr>
             )}
@@ -82,6 +95,70 @@ export default function Fees(): JSX.Element {
       <Modal open={importing} onClose={() => setImporting(false)} title="Import fee plans" width="max-w-lg">
         <ImportPanel kind="fees" />
       </Modal>
+
+      <Modal open={creating} onClose={() => setCreating(false)} title="New fee plan" width="max-w-2xl">
+        {creating && (
+          <NewFeePlan
+            onDone={() => {
+              setCreating(false)
+              refreshFees()
+            }}
+          />
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+/** Pick a student, then build (or update) their fee structure with the same
+ *  editor used on the student detail page. */
+function NewFeePlan({ onDone }: { onDone: () => void }): JSX.Element {
+  const [studentId, setStudentId] = useState<number | null>(null)
+  const { data: students = [] } = useQuery({
+    queryKey: ['students', 'fee-picker'],
+    queryFn: () => api.students.list({ status: 'all' })
+  })
+  const { data: plan, isLoading: planLoading } = useQuery({
+    queryKey: ['fee-plan', studentId],
+    queryFn: () => api.fees.getPlan({ studentId: studentId as number }),
+    enabled: studentId != null
+  })
+
+  if (studentId == null) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-slate-500">Choose a student, then build their fee structure.</p>
+        <div>
+          <label className="label">Student</label>
+          <select className="input" defaultValue="" onChange={(e) => setStudentId(Number(e.target.value) || null)}>
+            <option value="" disabled>
+              Select a student…
+            </option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.admissionNo} — {s.firstName} {s.lastName ?? ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        {students.length === 0 && <p className="text-sm text-slate-400">No students yet — add a student first.</p>}
+      </div>
+    )
+  }
+
+  if (planLoading) return <p className="text-sm text-slate-400">Loading…</p>
+
+  return (
+    <div className="space-y-3">
+      <button type="button" className="text-sm text-brand-600 hover:underline" onClick={() => setStudentId(null)}>
+        ← Choose a different student
+      </button>
+      {plan && (
+        <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          This student already has a fee plan — saving will update it.
+        </p>
+      )}
+      <FeePlanEditor studentId={studentId} plan={plan ?? null} onSaved={onDone} onCancel={onDone} />
     </div>
   )
 }

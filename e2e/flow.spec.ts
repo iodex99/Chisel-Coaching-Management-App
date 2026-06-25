@@ -75,4 +75,9 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   // The batch created earlier survived the relogin.
   await page.getByRole('link', { name: 'Batches' }).click()
   await expect(page.getByText('E2E Batch')).toBeVisible()
+
+  // --- The manual "New fee plan" entry point exists in the Fees section ---
+  await page.getByRole('link', { name: 'Fees' }).click()
+  await page.getByRole('button', { name: 'New fee plan' }).click()
+  await expect(page.getByText('Choose a student, then build their fee structure.')).toBeVisible()
 })

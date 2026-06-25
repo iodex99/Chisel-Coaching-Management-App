@@ -4,6 +4,15 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.11]
+
+### Added
+- **“New fee plan” button on the Fees screen.** Pick a student and build their
+  fee structure (total, discount, installments, “generate equal split”) inline,
+  without first opening the student’s page. If the student already has a plan it
+  loads for editing. The per-student “Create fee plan” on the student detail page
+  remains — this is just a faster manual entry point from the Fees overview.
+
 ## [1.0.10]
 
 A correctness/hardening release driven by a full system test pass and a

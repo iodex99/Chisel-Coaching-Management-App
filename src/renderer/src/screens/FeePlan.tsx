@@ -124,7 +124,7 @@ interface Row {
   dueDate: string
 }
 
-function FeePlanEditor({
+export function FeePlanEditor({
   studentId,
   plan,
   onSaved,
