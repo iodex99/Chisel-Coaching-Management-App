@@ -4,6 +4,27 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.15]
+
+### Added
+- **“Import data from another computer” on the welcome screen.** Moving to a new
+  PC no longer means signing up from scratch: install Chisel, click Import, pick
+  the `data` folder you copied (USB), and the app brings your database + key
+  across and reloads to the sign-in screen.
+
+### Changed
+- **Clearer “move to another PC” guidance.** Settings → Data & backups now spells
+  out the steps (close the app first; import or paste the folder; sign in with
+  the *original* PC's master password; 2FA uses your existing authenticator or a
+  recovery code). The sign-in screen shows a hint after a failed login, and the
+  welcome screen links the import flow.
+
+### Notes
+- This is a documentation/UX fix — the data was always portable. The database key
+  comes only from your master password (no machine binding), so a copied `data`
+  folder opens on any PC **with that password**. A new machine still asks for 2FA
+  once (trust is machine-bound); your existing authenticator/recovery codes work.
+
 ## [1.0.14]
 
 ### Added

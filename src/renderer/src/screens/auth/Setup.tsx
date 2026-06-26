@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { LoginResult } from '@shared/types'
 import { AuthCard } from '../../components/AuthCard'
 import { api, errMessage } from '../../lib/api'
@@ -11,6 +11,23 @@ export default function Setup({ onResult }: { onResult: (res: LoginResult) => vo
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [dataDir, setDataDir] = useState('')
+  const [moveError, setMoveError] = useState('')
+
+  useEffect(() => {
+    api.app.getDataDir().then(setDataDir).catch(() => undefined)
+  }, [])
+
+  async function importData(): Promise<void> {
+    setMoveError('')
+    try {
+      const r = await api.app.importData()
+      if (r.imported) window.location.reload()
+      else if (r.message !== 'Cancelled.') setMoveError(r.message)
+    } catch (e) {
+      setMoveError(errMessage(e))
+    }
+  }
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -69,6 +86,28 @@ export default function Setup({ onResult }: { onResult: (res: LoginResult) => vo
           {busy ? 'Setting up…' : 'Create account'}
         </button>
       </form>
+
+      <div className="mt-5 border-t border-slate-200 pt-4 text-xs text-slate-600">
+        <p className="font-medium text-slate-700">Already using Chisel on another computer?</p>
+        <p className="mt-1">Don’t sign up here — bring your existing data across instead:</p>
+        <button type="button" className="btn-outline mt-2 w-full" onClick={() => void importData()}>
+          Import data from another computer…
+        </button>
+        {moveError && <p className="mt-2 text-accent-600">{moveError}</p>}
+        <p className="mt-2 text-slate-400">
+          Pick the <code>data</code> folder you copied from the other PC (via USB). Then sign in with{' '}
+          <strong>that computer’s master password</strong> and your existing authenticator (or a recovery code) — a new
+          device always asks for 2FA once.
+        </p>
+        {dataDir && (
+          <div className="mt-2 flex items-center gap-2">
+            <code className="flex-1 select-all break-all rounded bg-slate-50 px-2 py-1 text-slate-700">{dataDir}</code>
+            <button type="button" className="btn-outline py-0.5" onClick={() => void api.app.openDataDir()}>
+              Open
+            </button>
+          </div>
+        )}
+      </div>
     </AuthCard>
   )
 }

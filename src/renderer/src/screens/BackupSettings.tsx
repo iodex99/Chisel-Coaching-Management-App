@@ -75,8 +75,7 @@ export function BackupSettings(): JSX.Element {
         <Database size={16} /> Data & backups
       </h2>
       <p className="mt-1 text-xs text-slate-400">
-        All your data — the encrypted database, its key, receipts and backups — lives in one folder next to the
-        app. Copy this whole folder to a USB drive to move everything to another PC.
+        All your data — the encrypted database, its key, receipts and backups — lives in this one folder.
       </p>
       <div className="mt-2 flex items-center gap-2 rounded-md bg-slate-50 p-2 text-xs">
         <code className="flex-1 select-all break-all text-slate-700">{dataDir || '…'}</code>
@@ -84,6 +83,30 @@ export function BackupSettings(): JSX.Element {
           Open folder
         </button>
       </div>
+
+      <details className="mt-3 text-xs text-slate-500">
+        <summary className="cursor-pointer text-brand-600">Move everything to another computer →</summary>
+        <ol className="mt-2 list-decimal space-y-1 pl-4">
+          <li>
+            <strong>Close Chisel on both computers first</strong> (so the files aren’t being written while you copy).
+          </li>
+          <li>Copy this whole <code>data</code> folder onto a USB drive (use “Open folder” above).</li>
+          <li>
+            On the other computer, install Chisel. On its welcome screen choose{' '}
+            <strong>“Import data from another computer”</strong> and pick the folder you copied — or paste it manually
+            into that PC’s own data folder (shown on its welcome / this screen).
+          </li>
+          <li>
+            Sign in with <strong>this computer’s master password</strong>, and enter a code from your existing
+            authenticator app (or a recovery code). A new computer always asks for 2FA once — tick “Trust this device”
+            to skip it next time there.
+          </li>
+        </ol>
+        <p className="mt-2 text-slate-400">
+          To keep both computers in sync later, repeat the copy whenever data changes — the app does not sync
+          automatically.
+        </p>
+      </details>
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <button className="btn-primary" onClick={() => void create()} disabled={busy}>

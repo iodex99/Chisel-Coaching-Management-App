@@ -1,6 +1,9 @@
-import { app, ipcMain, shell } from 'electron'
+import { app, ipcMain, shell, dialog, BrowserWindow } from 'electron'
+import { existsSync, copyFileSync, cpSync } from 'fs'
+import { join } from 'path'
 import { z, type ZodTypeAny } from 'zod'
-import { resolveDataDir } from './paths'
+import { resolveDataDir, ensureDataDirs } from './paths'
+import { isOpen } from './db/database'
 import * as auth from './services/auth'
 import * as twoFactor from './services/twoFactor'
 import * as accounts from './services/account'
@@ -86,6 +89,30 @@ export function registerIpc(): void {
   handle('app:getVersion', null, () => app.getVersion())
   handle('app:getDataDir', null, () => resolveDataDir())
   handle('app:openDataDir', null, () => shell.openPath(resolveDataDir()))
+
+  // Import a data folder copied from another computer (used before signing in,
+  // so the user can move their data without hand-navigating AppData).
+  handle('app:importData', null, async () => {
+    if (isOpen()) throw new Error('Please sign out before importing data from another computer.')
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Select your Chisel “data” folder (from the other computer / USB drive)',
+      properties: ['openDirectory']
+    })
+    if (res.canceled || res.filePaths.length === 0) return { imported: false, message: 'Cancelled.' }
+    const src = res.filePaths[0]
+    if (!existsSync(join(src, 'keyfile.json')) || !existsSync(join(src, 'chisel.db'))) {
+      throw new Error('That folder is not a Chisel data folder — it must contain keyfile.json and chisel.db.')
+    }
+    const dest = resolveDataDir()
+    ensureDataDirs()
+    copyFileSync(join(src, 'keyfile.json'), join(dest, 'keyfile.json'))
+    copyFileSync(join(src, 'chisel.db'), join(dest, 'chisel.db'))
+    for (const sub of ['receipts', 'backups']) {
+      if (existsSync(join(src, sub))) cpSync(join(src, sub), join(dest, sub), { recursive: true })
+    }
+    return { imported: true, message: 'Data imported. Sign in with the master password from your other computer.' }
+  })
 
   // Authentication & session
   handle('auth:getState', null, () => auth.getAuthState())

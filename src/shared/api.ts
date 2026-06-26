@@ -60,6 +60,8 @@ export interface ChiselApi {
     getDataDir(): Promise<string>
     /** Open the data folder in the OS file explorer. */
     openDataDir(): Promise<string>
+    /** Pick a data folder copied from another computer and import it (pre-login). */
+    importData(): Promise<{ imported: boolean; message: string }>
   }
   auth: {
     getState(): Promise<AuthState>

@@ -39,7 +39,15 @@ export default function Login({ onResult }: { onResult: (res: LoginResult) => vo
           <input className="input" type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
 
-        {error && <p className="text-sm text-accent-600">{error}</p>}
+        {error && (
+          <div>
+            <p className="text-sm text-accent-600">{error}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Moved your data from another computer? Sign in with <strong>that computer’s</strong> master password. Your
+              authenticator and recovery codes from there still work — this device will ask for a 2FA code once.
+            </p>
+          </div>
+        )}
 
         <button type="submit" className="btn-primary w-full" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}

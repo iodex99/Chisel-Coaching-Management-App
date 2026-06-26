@@ -12,7 +12,8 @@ const api: ChiselApi = {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     getPlatform: () => process.platform,
     getDataDir: () => ipcRenderer.invoke('app:getDataDir'),
-    openDataDir: () => ipcRenderer.invoke('app:openDataDir')
+    openDataDir: () => ipcRenderer.invoke('app:openDataDir'),
+    importData: () => ipcRenderer.invoke('app:importData')
   },
   auth: {
     getState: () => ipcRenderer.invoke('auth:getState'),

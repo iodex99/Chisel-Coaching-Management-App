@@ -29,12 +29,30 @@ All data lives in one folder (path + an **Open folder** button are in
 ```
 
 ### Moving to another PC
-Install the app on the other PC, then either copy this `data` folder across, or
-use **Backup → Restore**.
 
-> On a **new** machine, 2FA is required even if "trusted device" was set on the
-> original PC — trust is bound to the machine, not the data (see
-> [SECURITY.md](SECURITY.md)).
+The database key is derived purely from the master password + the salt in
+`keyfile.json` (no machine binding), so the `data` folder is fully portable.
+Procedure:
+
+1. **Close Chisel on both PCs first** — otherwise the running app re-writes the
+   DB on exit and can clobber a freshly-pasted folder.
+2. Copy the whole `data` folder from the old PC to a USB drive.
+3. On the new PC, install Chisel and **do not complete sign-up**. On the welcome
+   screen click **“Import data from another computer”** and pick the copied
+   folder (this calls `app:importData`, which copies `keyfile.json` + `chisel.db`
+   (+ `receipts`/`backups`) into the new PC's data dir, then the app reloads).
+   Manual alternative: paste the folder into the new PC's own data path.
+4. Sign in with the **old PC's master password** (the keyfile travels with the
+   data — the new sign-up password, if you created one, will NOT work).
+
+> **Two-factor:** a new machine always requires 2FA once — trust is bound to the
+> machine, not the data (see [SECURITY.md](SECURITY.md)). Your **existing**
+> authenticator app and recovery codes still work (their secrets are in the DB);
+> any 2FA you enrolled during a throw-away sign-up on the new PC is overwritten
+> by the import. Tick "Trust this device" to skip 2FA there next time.
+>
+> There is **no automatic sync** — repeat the copy whenever you want the other PC
+> up to date.
 
 ## Data path resolution
 
