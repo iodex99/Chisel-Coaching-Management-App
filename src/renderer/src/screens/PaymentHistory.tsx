@@ -15,19 +15,20 @@ const modeLabel = (m: PaymentMode): string => PAYMENT_MODES.find((x) => x.value 
 
 export function PaymentHistory({ filter, showStudent = true }: { filter: PaymentFilter; showStudent?: boolean }): JSX.Element {
   const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(PAGE_SIZE)
   const [sort, setSort] = useState<Sort>({ key: 'date', dir: 'desc' })
   const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
   const filterKey = JSON.stringify(filter)
-  useEffect(() => setPage(0), [filterKey, sort])
+  useEffect(() => setPage(0), [filterKey, sort, pageSize])
   const { data: payments = [], isLoading } = useQuery({
-    queryKey: ['payments', filterKey, sort, page],
+    queryKey: ['payments', filterKey, sort, page, pageSize],
     queryFn: () =>
       api.payments.list({
         ...filter,
         sortBy: sort.key as PaymentFilter['sortBy'],
         sortDir: sort.dir,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE
+        limit: pageSize,
+        offset: page * pageSize
       })
   })
 
@@ -111,7 +112,7 @@ export function PaymentHistory({ filter, showStudent = true }: { filter: Payment
         </tbody>
       </table>
     </div>
-    <Pager page={page} setPage={setPage} count={payments.length} />
+    <Pager page={page} setPage={setPage} count={payments.length} pageSize={pageSize} setPageSize={setPageSize} />
 
     <Modal open={cancelling !== null} onClose={() => setCancelling(null)} title="Cancel payment">
       {cancelling && (

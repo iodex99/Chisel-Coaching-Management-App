@@ -27,12 +27,13 @@ export default function Students(): JSX.Element {
   const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
 
   const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(PAGE_SIZE)
   const [importing, setImporting] = useState(false)
-  useEffect(() => setPage(0), [search, batchId, status, gender, sort])
+  useEffect(() => setPage(0), [search, batchId, status, gender, sort, pageSize])
 
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students', search, batchId, status, gender, sort, page],
+    queryKey: ['students', search, batchId, status, gender, sort, page, pageSize],
     queryFn: () =>
       api.students.list({
         search: search || undefined,
@@ -41,8 +42,8 @@ export default function Students(): JSX.Element {
         gender: gender || undefined,
         sortBy: sort.key as StudentFilter['sortBy'],
         sortDir: sort.dir,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE
+        limit: pageSize,
+        offset: page * pageSize
       })
   })
 
@@ -142,7 +143,7 @@ export default function Students(): JSX.Element {
           </tbody>
         </table>
       </div>
-      <Pager page={page} setPage={setPage} count={students.length} />
+      <Pager page={page} setPage={setPage} count={students.length} pageSize={pageSize} setPageSize={setPageSize} />
 
       <Modal open={importing} onClose={() => setImporting(false)} title="Import students" width="max-w-lg">
         <ImportPanel kind="students" />

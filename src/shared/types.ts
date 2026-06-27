@@ -356,7 +356,10 @@ export interface PaymentFilter {
   mode?: PaymentMode | 'all'
   accountId?: number | null
   search?: string
+  /** Legacy: true = include cancelled alongside active. Prefer `cancelled`. */
   includeCancelled?: boolean
+  /** active = hide cancelled (default), cancelled = only cancelled, all = both. */
+  cancelled?: 'active' | 'cancelled' | 'all'
   sortBy?: 'date' | 'amount' | 'receiptNo' | 'student' | 'mode'
   sortDir?: SortDir
   limit?: number

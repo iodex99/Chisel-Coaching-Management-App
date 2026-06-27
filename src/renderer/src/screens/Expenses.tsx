@@ -33,7 +33,8 @@ export default function Expenses(): JSX.Element {
   const { data: vendors = [] } = useQuery({ queryKey: ['vendors'], queryFn: () => api.vendors.list() })
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: () => api.accounts.list() })
   const [page, setPage] = useState(0)
-  useEffect(() => setPage(0), [search, categoryId, vendorId, accountId, mode, dateFrom, dateTo, sort])
+  const [pageSize, setPageSize] = useState(PAGE_SIZE)
+  useEffect(() => setPage(0), [search, categoryId, vendorId, accountId, mode, dateFrom, dateTo, sort, pageSize])
   const filter = {
     search: search || undefined,
     categoryId: categoryId === '' ? undefined : categoryId,
@@ -46,8 +47,8 @@ export default function Expenses(): JSX.Element {
     sortDir: sort.dir
   }
   const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses', filter, page],
-    queryFn: () => api.expenses.list({ ...filter, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+    queryKey: ['expenses', filter, page, pageSize],
+    queryFn: () => api.expenses.list({ ...filter, limit: pageSize, offset: page * pageSize })
   })
 
   const refresh = (): void => {
@@ -191,7 +192,7 @@ export default function Expenses(): JSX.Element {
           </tbody>
         </table>
       </div>
-      <Pager page={page} setPage={setPage} count={expenses.length} />
+      <Pager page={page} setPage={setPage} count={expenses.length} pageSize={pageSize} setPageSize={setPageSize} />
 
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Record expense' : 'Edit expense'} width="max-w-2xl">
         {editing !== null && (

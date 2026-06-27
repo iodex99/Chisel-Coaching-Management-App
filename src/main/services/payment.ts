@@ -144,7 +144,12 @@ export function getPayment(id: number): PaymentRecord | undefined {
 export function listPayments(filter: PaymentFilter = {}): PaymentListItem[] {
   const where: string[] = []
   const params: (string | number)[] = []
-  if (!filter.includeCancelled) where.push('p.is_cancelled = 0')
+  // `cancelled` (tri-state) takes precedence; fall back to legacy includeCancelled.
+  if (filter.cancelled === 'cancelled') where.push('p.is_cancelled = 1')
+  else if (filter.cancelled === 'all') {
+    /* show both */
+  } else if (filter.cancelled === 'active') where.push('p.is_cancelled = 0')
+  else if (!filter.includeCancelled) where.push('p.is_cancelled = 0')
   if (filter.studentId) {
     where.push('p.student_id = ?')
     params.push(filter.studentId)

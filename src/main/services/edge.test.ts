@@ -236,4 +236,17 @@ describe('list filtering & sorting', () => {
     const asc = expense.listExpenses({ dateFrom: '2028-06-01', dateTo: '2028-06-30', sortBy: 'amount', sortDir: 'asc' })
     expect(asc.map((e) => e.amount)).toEqual([500, 1500])
   })
+
+  it('filters payments by cancelled state (active / cancelled / all)', () => {
+    const s = students.createStudent({ admissionNo: 'PC-1', firstName: 'P', lastName: 'C', gender: 'male', status: 'active', guardians: [] })
+    const a = payments.recordPayment({ studentId: s.id, amount: 100, paymentDate: '2032-06-01', mode: 'cash' })
+    payments.recordPayment({ studentId: s.id, amount: 200, paymentDate: '2032-06-02', mode: 'cash' })
+    payments.cancelPayment(a.id, 'oops')
+
+    expect(payments.listPayments({ studentId: s.id }).length).toBe(1) // default hides cancelled
+    expect(payments.listPayments({ studentId: s.id, cancelled: 'active' }).length).toBe(1)
+    const only = payments.listPayments({ studentId: s.id, cancelled: 'cancelled' })
+    expect(only.map((p) => p.isCancelled)).toEqual([true])
+    expect(payments.listPayments({ studentId: s.id, cancelled: 'all' }).length).toBe(2)
+  })
 })

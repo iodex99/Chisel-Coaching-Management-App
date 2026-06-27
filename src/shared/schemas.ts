@@ -197,6 +197,7 @@ export const paymentFilterSchema = z.object({
   accountId: z.number().int().positive().nullable().optional(),
   search: z.string().trim().max(80).optional(),
   includeCancelled: z.boolean().optional(),
+  cancelled: z.enum(['active', 'cancelled', 'all']).optional(),
   sortBy: z.enum(['date', 'amount', 'receiptNo', 'student', 'mode']).optional(),
   sortDir,
   ...pageFields

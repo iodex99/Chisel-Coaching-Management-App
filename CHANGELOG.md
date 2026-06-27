@@ -4,6 +4,18 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.16]
+
+### Changed
+- **Payments cancelled filter is now a dropdown** — *Active only* (default),
+  *Cancelled only*, or *All (incl. cancelled)*. Previously the “Show cancelled”
+  checkbox merely *added* cancelled rows to the active list, so there was no way
+  to see only cancelled ones; now there is.
+
+### Added
+- **Rows per page (10 / 25 / 50 / 100)** selector on the Students, Payments and
+  Expenses lists, so you control how many rows show per page.
+
 ## [1.0.15]
 
 ### Added

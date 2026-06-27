@@ -16,7 +16,7 @@ export default function Payments(): JSX.Element {
   const [dateTo, setDateTo] = useState('')
   const [mode, setMode] = useState<PaymentMode | 'all'>('all')
   const [accountId, setAccountId] = useState<number | ''>('')
-  const [includeCancelled, setIncludeCancelled] = useState(false)
+  const [cancelled, setCancelled] = useState<'active' | 'cancelled' | 'all'>('active')
   const [recording, setRecording] = useState(false)
 
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: () => api.accounts.list() })
@@ -27,7 +27,7 @@ export default function Payments(): JSX.Element {
     dateTo: dateTo || undefined,
     mode,
     accountId: accountId === '' ? undefined : accountId,
-    includeCancelled
+    cancelled
   }
 
   return (
@@ -71,9 +71,11 @@ export default function Payments(): JSX.Element {
             </option>
           ))}
         </select>
-        <label className="flex items-center gap-2 pb-2 text-sm text-slate-600">
-          <input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} /> Show cancelled
-        </label>
+        <select className="input w-40" value={cancelled} onChange={(e) => setCancelled(e.target.value as 'active' | 'cancelled' | 'all')}>
+          <option value="active">Active only</option>
+          <option value="cancelled">Cancelled only</option>
+          <option value="all">All (incl. cancelled)</option>
+        </select>
       </div>
 
       <PaymentHistory filter={filter} />
