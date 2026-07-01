@@ -90,7 +90,7 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   // --- Load sample data from Settings (auto-accept the confirm dialog) ---
   page.on('dialog', (d) => void d.accept())
   await page.getByRole('link', { name: 'Settings' }).click()
-  await page.getByRole('button', { name: 'Load sample data' }).click()
+  await page.getByRole('button', { name: /Load.*sample data/ }).click()
   await expect(page.getByText(/Loaded sample data/)).toBeVisible({ timeout: 20000 })
 
   // --- Students: a sortable header round-trips to the backend on the seeded list ---

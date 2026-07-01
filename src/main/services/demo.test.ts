@@ -61,9 +61,18 @@ describe('demo data seeding', () => {
     expect(dash.overdueStudents).toBeGreaterThan(0)
     expect(dash.recentPayments.length).toBeGreaterThan(0)
 
-    // Second run is a no-op.
+    // Second run REFRESHES (clears the old sample, reseeds with today's dates) —
+    // it must not duplicate the students.
     const r2 = await demo.seedDemoData()
-    expect(r2.added).toBe(false)
+    expect(r2.added).toBe(true)
+    expect(r2.message).toMatch(/refresh/i)
     expect(students.listStudents({ status: 'all' })).toHaveLength(14)
+    expect(dashboard.getDashboard().monthCollection).toBeGreaterThan(0)
+
+    // Remove clears the sample data entirely, leaving nothing behind.
+    expect(demo.removeSampleData().removed).toBe(true)
+    expect(students.listStudents({ status: 'all' })).toHaveLength(0)
+    expect(fees.listFeeSummaries()).toHaveLength(0)
+    expect(demo.removeSampleData().removed).toBe(false) // idempotent
   })
 })

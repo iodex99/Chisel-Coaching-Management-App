@@ -178,7 +178,9 @@ export interface ChiselApi {
     importFees(bytes: Uint8Array): Promise<ImportResult>
   }
   demo: {
-    /** Seed a full set of realistic sample records (for demos / training). */
+    /** Seed (or refresh with today's dates) a full set of realistic sample records. */
     seedSample(): Promise<{ added: boolean; message: string }>
+    /** Remove all sample records (tagged "(Sample)"), leaving real data intact. */
+    removeSample(): Promise<{ removed: boolean }>
   }
 }

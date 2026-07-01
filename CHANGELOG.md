@@ -4,6 +4,21 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.18]
+
+### Fixed
+- **Sample-data dashboard showed ₹0 for “today / this month”.** The demo data's
+  “recent” payments/expenses were pinned to the day it was loaded, so once the
+  month rolled over those cards (and the collection chart's latest month) went to
+  zero, even though outstanding/overdue still showed. **“Load sample data” now
+  refreshes** — it clears the old sample and reseeds with *today's* dates — so the
+  dashboard always reflects the current period. Click it again any time to
+  re-date the demo.
+
+### Added
+- **“Remove sample data”** button (Settings → Sample data) that deletes just the
+  “(Sample)”-tagged records, leaving your real data intact.
+
 ## [1.0.17]
 
 ### Added

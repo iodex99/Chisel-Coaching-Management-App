@@ -47,18 +47,61 @@ export interface SeedResult {
   message: string
 }
 
-export async function seedDemoData(): Promise<SeedResult> {
-  const already =
-    getDb().get<{ c: number }>("SELECT COUNT(*) AS c FROM batches WHERE name LIKE '%(Sample)%'")?.c ?? 0
-  if (already > 0) {
-    return {
-      added: false,
-      message: 'Sample data is already loaded. To reload it, restore the "pre-demo" backup from Data & Backup first.'
-    }
-  }
+const inClause = (ids: number[]): string => ids.map(() => '?').join(',')
 
-  // Safety: snapshot the current (likely empty) state so it can be restored.
-  await createBackup('pre-demo')
+/** Delete everything the sample seeder created (tagged "(Sample)"), leaving any
+ * real data untouched. Returns whether anything was removed. */
+export function clearSampleData(): { removed: boolean } {
+  const db = getDb()
+  const batchIds = db.all<{ id: number }>("SELECT id FROM batches WHERE name LIKE '%(Sample)%'").map((r) => r.id)
+  const acctIds = db.all<{ id: number }>("SELECT id FROM accounts WHERE name LIKE '%(Sample)%'").map((r) => r.id)
+  const vendIds = db.all<{ id: number }>("SELECT id FROM vendors WHERE name LIKE '%(Sample)%'").map((r) => r.id)
+  if (batchIds.length === 0 && acctIds.length === 0 && vendIds.length === 0) return { removed: false }
+
+  const stuIds = batchIds.length
+    ? db.all<{ id: number }>(`SELECT id FROM students WHERE batch_id IN (${inClause(batchIds)})`, batchIds).map((r) => r.id)
+    : []
+
+  db.transaction((d) => {
+    if (stuIds.length) {
+      // Delete payments first (payments.student_id has no cascade), then students
+      // (cascades fee_plans -> installments, guardians; payments cascade allocations).
+      d.run(`DELETE FROM payments WHERE student_id IN (${inClause(stuIds)})`, stuIds)
+      d.run(`DELETE FROM students WHERE id IN (${inClause(stuIds)})`, stuIds)
+    }
+    const expConds: string[] = []
+    const expParams: number[] = []
+    if (acctIds.length) {
+      expConds.push(`account_id IN (${inClause(acctIds)})`)
+      expParams.push(...acctIds)
+    }
+    if (vendIds.length) {
+      expConds.push(`vendor_id IN (${inClause(vendIds)})`)
+      expParams.push(...vendIds)
+    }
+    if (expConds.length) d.run(`DELETE FROM expenses WHERE ${expConds.join(' OR ')}`, expParams)
+    if (acctIds.length) d.run(`DELETE FROM accounts WHERE id IN (${inClause(acctIds)})`, acctIds) // cascades limits
+    if (vendIds.length) d.run(`DELETE FROM vendors WHERE id IN (${inClause(vendIds)})`, vendIds)
+    if (batchIds.length) d.run(`DELETE FROM batches WHERE id IN (${inClause(batchIds)})`, batchIds)
+  })
+  return { removed: true }
+}
+
+/** Remove sample data on demand (Settings button). */
+export function removeSampleData(): { removed: boolean } {
+  return clearSampleData()
+}
+
+export async function seedDemoData(): Promise<SeedResult> {
+  const hadSample = (getDb().get<{ c: number }>("SELECT COUNT(*) AS c FROM batches WHERE name LIKE '%(Sample)%'")?.c ?? 0) > 0
+  if (hadSample) {
+    // Refresh: remove the old sample (dates go stale as the month rolls over) and
+    // reseed with today's dates so the dashboard reflects the current period.
+    clearSampleData()
+  } else {
+    // First load: snapshot the current (real) state so it can be restored later.
+    await createBackup('pre-demo')
+  }
 
   const fy = financialYear(today())
 
@@ -239,6 +282,8 @@ export async function seedDemoData(): Promise<SeedResult> {
   )
   return {
     added: true,
-    message: `Loaded sample data — ${counts?.s ?? 0} students, 5 batches, ${counts?.p ?? 0} payments and ${counts?.e ?? 0} expenses. A "pre-demo" backup was saved so you can restore your earlier state afterwards.`
+    message: hadSample
+      ? `Sample data refreshed with today's dates — ${counts?.s ?? 0} students, ${counts?.p ?? 0} payments, ${counts?.e ?? 0} expenses.`
+      : `Loaded sample data — ${counts?.s ?? 0} students, 5 batches, ${counts?.p ?? 0} payments and ${counts?.e ?? 0} expenses. A "pre-demo" backup was saved so you can restore your earlier state afterwards.`
   }
 }

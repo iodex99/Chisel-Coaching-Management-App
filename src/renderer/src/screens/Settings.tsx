@@ -52,18 +52,18 @@ export default function Settings(): JSX.Element {
 }
 
 function SampleDataCard(): JSX.Element {
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'load' | 'remove' | null>(null)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
   async function load(): Promise<void> {
     if (
       !window.confirm(
-        'Load a set of sample students, batches, fee plans, payments and expenses for a demo?\n\nA backup of your current data is taken first, so you can restore it from Data & Backup afterwards.'
+        'Load (or refresh) a set of sample students, batches, fee plans, payments and expenses for a demo?\n\nIf sample data is already loaded it is replaced with fresh data dated to today. Your real data is untouched (a "pre-demo" backup was made the first time).'
       )
     )
       return
-    setBusy(true)
+    setBusy('load')
     setErr('')
     setMsg('')
     try {
@@ -73,7 +73,23 @@ function SampleDataCard(): JSX.Element {
     } catch (e) {
       setErr(errMessage(e))
     } finally {
-      setBusy(false)
+      setBusy(null)
+    }
+  }
+
+  async function remove(): Promise<void> {
+    if (!window.confirm('Remove all sample records? Your real data is left intact.')) return
+    setBusy('remove')
+    setErr('')
+    setMsg('')
+    try {
+      const res = await api.demo.removeSample()
+      setMsg(res.removed ? 'Sample data removed.' : 'No sample data to remove.')
+      await queryClient.invalidateQueries()
+    } catch (e) {
+      setErr(errMessage(e))
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -84,14 +100,19 @@ function SampleDataCard(): JSX.Element {
       </h2>
       <p className="mt-2 text-sm text-slate-500">
         Fill the app with realistic demo records across every screen (students, batches, fee plans, payments and
-        expenses) to explore or demonstrate the app. Your current data is backed up first — restore the “pre-demo”
-        backup above to undo.
+        expenses). <strong>Load again any time to refresh</strong> — the “today / this month” figures are re-dated to
+        the current period, so the dashboard always reflects the present. Your real data is untouched.
       </p>
       {msg && <p className="mt-3 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</p>}
       {err && <p className="mt-3 text-sm text-accent-600">{err}</p>}
-      <button className="btn-outline mt-3" onClick={() => void load()} disabled={busy}>
-        {busy ? 'Loading…' : 'Load sample data'}
-      </button>
+      <div className="mt-3 flex gap-2">
+        <button className="btn-outline" onClick={() => void load()} disabled={busy !== null}>
+          {busy === 'load' ? 'Loading…' : 'Load / refresh sample data'}
+        </button>
+        <button className="btn-outline text-accent-600" onClick={() => void remove()} disabled={busy !== null}>
+          {busy === 'remove' ? 'Removing…' : 'Remove sample data'}
+        </button>
+      </div>
     </section>
   )
 }

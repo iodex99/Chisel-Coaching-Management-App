@@ -243,4 +243,5 @@ export function registerIpc(): void {
 
   // Demo / sample data
   handleAuthed('demo:seed', null, () => demo.seedDemoData())
+  handleAuthed('demo:clear', null, () => demo.removeSampleData())
 }
