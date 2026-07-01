@@ -119,15 +119,31 @@ function buildFeesTemplate(): ExcelJS.Workbook {
   const batchLabels = listBatches().map((b) => (b.courseName ? `${b.courseName} — ${b.name}` : b.name))
   batchLabels.forEach((label, i) => (lists.getCell(`A${i + 1}`).value = label))
 
-  // Columns A..F. Pick a Course/Batch (B) to pull its base fee; Total Fee (C) is
+  // Columns A..O. Pick a Course/Batch (B) to pull its base fee; Total Fee (C) is
   // optional and overrides the batch fee when filled.
+  //
+  // Two ways to define the schedule:
+  //  • Simple: fill "Installments (equal split)" (E) + "First Due Date" (F) and
+  //    the net fee is split into that many equal monthly installments.
+  //  • Custom: fill any of the "Installment 1/2/3" amount+date columns (G..O) and
+  //    those exact installments are used (their amounts must add up to the net).
+  // For more than 3 custom installments, create the plan in the app.
   ws.columns = [
     { header: 'Admission No', width: 14 }, // A
     { header: 'Course / Batch', width: 26 }, // B (dropdown)
     { header: 'Total Fee (optional)', width: 18 }, // C
     { header: 'Discount', width: 12 }, // D
-    { header: 'Installments', width: 14 }, // E
-    { header: 'First Due Date (DD-MM-YYYY)', width: 26 } // F
+    { header: 'Installments (equal split)', width: 22 }, // E
+    { header: 'First Due Date (DD-MM-YYYY)', width: 26 }, // F
+    { header: 'Installment 1 Label', width: 18 }, // G
+    { header: 'Installment 1 Amount', width: 18 }, // H
+    { header: 'Installment 1 Date (DD-MM-YYYY)', width: 28 }, // I
+    { header: 'Installment 2 Label', width: 18 }, // J
+    { header: 'Installment 2 Amount', width: 18 }, // K
+    { header: 'Installment 2 Date (DD-MM-YYYY)', width: 28 }, // L
+    { header: 'Installment 3 Label', width: 18 }, // M
+    { header: 'Installment 3 Amount', width: 18 }, // N
+    { header: 'Installment 3 Date (DD-MM-YYYY)', width: 28 } // O
   ]
   ws.getRow(1).font = { bold: true }
 
@@ -196,19 +212,28 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
     const adm = cellText(row, c.adm)
     const first = cellText(row, c.first)
     const last = cellText(row, c.last)
-    const gender = cellText(row, c.gender)
+    const gender = cellText(row, c.gender).toLowerCase() // normalise "Male" -> "male"
+    const admDateRaw = cellText(row, c.admdate)
     const admDate = cellDate(row, c.admdate)
     if (!adm && !first && !last) continue // blank row
 
-    // Required fields.
+    // Required fields (a present-but-invalid admission date is reported separately).
     const missing: string[] = []
     if (!adm) missing.push('Admission No')
-    if (!admDate) missing.push('Admission Date (DD-MM-YYYY)')
+    if (!admDate && !admDateRaw) missing.push('Admission Date (DD-MM-YYYY)')
     if (!first) missing.push('First Name')
     if (!last) missing.push('Last Name')
     if (!gender) missing.push('Gender')
     if (missing.length) {
       result.errors.push({ row: r, message: `Missing required: ${missing.join(', ')}` })
+      continue
+    }
+    if (!admDate) {
+      result.errors.push({ row: r, message: 'Admission Date is not a valid date (use DD-MM-YYYY)' })
+      continue
+    }
+    if (!['male', 'female', 'other'].includes(gender)) {
+      result.errors.push({ row: r, message: `Gender must be male, female or other (got "${gender}")` })
       continue
     }
 
@@ -264,14 +289,20 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
     adm: findCol(h, ['admissionno', 'admissionnumber']),
     batch: findCol(h, ['coursebatch', 'batch', 'course'], 'course'),
     plan: findCol(h, ['planname', 'plan']),
-    total: findCol(h, ['totalfee', 'total', 'amount']),
+    total: findCol(h, ['totalfee', 'total', 'amount'], 'totalfee'), // matches "Total Fee (optional)"
     discount: findCol(h, ['discount']),
-    installments: findCol(h, ['installments', 'noofinstallments']),
+    installments: findCol(h, ['installments', 'noofinstallments'], 'installments'),
     firstDue: findCol(h, ['firstduedate'], 'firstdue')
   }
   if (!c.adm) {
     throw new Error('Could not find the "Admission No" column. Use the provided template.')
   }
+  // Optional explicit per-installment columns (up to 3).
+  const instCols = [1, 2, 3].map((n) => ({
+    label: findCol(h, [`installment${n}label`]),
+    amount: findCol(h, [`installment${n}amount`]),
+    date: findCol(h, [`installment${n}date`], `installment${n}date`)
+  }))
 
   // Base fee per course/batch (in paise), looked up by the dropdown label or the
   // plain batch name, so a row can pull its fee from the batch instead of typing it.
@@ -300,43 +331,69 @@ export async function importFees(bytes: Buffer): Promise<ImportResult> {
       result.errors.push({ row: r, message: 'Discount cannot be negative' })
       continue
     }
-    // Total Fee (if given) overrides; otherwise pull the base fee from the chosen course/batch.
+    const discount = toPaise(discountRupees)
+
+    // Custom installments: any Installment N with a positive amount is used
+    // verbatim (label optional, date optional-but-must-be-valid-if-present).
+    let badInstDate = false
+    const explicit: { label?: string; dueAmount: number; dueDate?: string }[] = []
+    for (const ic of instCols) {
+      const amt = cellNumber(row, ic.amount)
+      if (amt <= 0) continue
+      const rawDate = cellText(row, ic.date)
+      const date = cellDate(row, ic.date)
+      if (rawDate && !date) badInstDate = true
+      explicit.push({ label: cellText(row, ic.label) || undefined, dueAmount: toPaise(amt), dueDate: date || undefined })
+    }
+    if (badInstDate) {
+      result.errors.push({ row: r, message: 'An installment date is not a valid date (use DD-MM-YYYY)' })
+      continue
+    }
+
+    // Total Fee (if given) overrides; else the batch base fee; else, when custom
+    // installments are supplied, derive it from them.
     let total: number
     if (totalRupees > 0) {
       total = toPaise(totalRupees)
     } else {
       const batchLabel = cellText(row, c.batch)
       const fee = batchLabel ? batchFee.get(batchLabel.toLowerCase()) : undefined
-      if (!fee || fee <= 0) {
-        result.errors.push({ row: r, message: 'Enter a Total Fee or pick a Course / Batch that has a base fee' })
+      if (fee && fee > 0) total = fee // batch defaultFee is already in paise
+      else if (explicit.length > 0) total = explicit.reduce((s, e) => s + e.dueAmount, 0) + discount
+      else {
+        result.errors.push({ row: r, message: 'Enter a Total Fee, pick a Course / Batch, or fill the installment amounts' })
         continue
       }
-      total = fee // batch defaultFee is already in paise
     }
-    const discount = toPaise(discountRupees)
     const net = total - discount
     if (net <= 0) {
       result.errors.push({ row: r, message: 'Total fee must be greater than the discount' })
       continue
     }
-    const count = Math.max(1, Math.min(60, Math.round(cellNumber(row, c.installments)) || 1))
-    // A first due date is required to schedule installments; reject a present-but-invalid one.
-    const firstDueRaw = cellText(row, c.firstDue)
-    const firstDue = cellDate(row, c.firstDue)
-    if (!firstDue) {
-      result.errors.push({
-        row: r,
-        message: firstDueRaw ? 'First Due Date is not a valid date (use DD-MM-YYYY)' : 'Missing required: First Due Date (DD-MM-YYYY)'
-      })
-      continue
-    }
 
-    const per = Math.floor(net / count)
-    const installments = Array.from({ length: count }, (_, i) => ({
-      label: `Installment ${i + 1}`,
-      dueAmount: i === count - 1 ? net - per * (count - 1) : per,
-      dueDate: addMonths(firstDue, i)
-    }))
+    let installments: { label: string; dueAmount: number; dueDate?: string }[]
+    if (explicit.length > 0) {
+      // Custom schedule — amounts must add up to the net (saveFeePlan validates).
+      installments = explicit.map((e, i) => ({ label: e.label || `Installment ${i + 1}`, dueAmount: e.dueAmount, dueDate: e.dueDate }))
+    } else {
+      // Equal split — needs a valid first due date.
+      const count = Math.max(1, Math.min(60, Math.round(cellNumber(row, c.installments)) || 1))
+      const firstDueRaw = cellText(row, c.firstDue)
+      const firstDue = cellDate(row, c.firstDue)
+      if (!firstDue) {
+        result.errors.push({
+          row: r,
+          message: firstDueRaw ? 'First Due Date is not a valid date (use DD-MM-YYYY)' : 'Missing required: First Due Date (DD-MM-YYYY)'
+        })
+        continue
+      }
+      const per = Math.floor(net / count)
+      installments = Array.from({ length: count }, (_, i) => ({
+        label: `Installment ${i + 1}`,
+        dueAmount: i === count - 1 ? net - per * (count - 1) : per,
+        dueDate: addMonths(firstDue, i)
+      }))
+    }
 
     try {
       saveFeePlan(student.id, {

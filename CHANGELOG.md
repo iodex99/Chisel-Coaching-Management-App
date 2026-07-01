@@ -4,6 +4,33 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.17]
+
+### Added
+- **Custom installments in the fees import template.** New optional columns —
+  **Installment 1 / 2 / 3** (Label, Amount, Date each). Fill them for an exact
+  schedule (the amounts must add up to the net fee), or leave them blank and use
+  “Installments (equal split)” + “First Due Date” as before. For more than 3
+  installments, create the plan in the app.
+
+### Fixed
+- **Fees import silently ignored the “Total Fee” column.** After the header was
+  renamed to “Total Fee (optional)” the importer stopped matching it, so a typed
+  total was dropped (it fell back to the batch/derived fee). It's matched again.
+  *(Found while testing imports end-to-end.)*
+- **Students import now validates gender** — “Male” is normalised to “male”, and
+  anything that isn't male/female/other is rejected with a clear message (so it
+  matches the gender filter/dropdown).
+- **Clearer date errors on import** — a present-but-invalid date (e.g. 31-02-2026)
+  now says “not a valid date (use DD-MM-YYYY)” instead of “missing”, for both the
+  admission date and installment/first-due dates.
+
+### Tests
+- Added a thorough import suite (students + fees, custom installments, batch base
+  fee, Excel Date cells, shuffled/extra columns, duplicates, invalid dates,
+  mismatched installment totals…), and the end-to-end test now imports a student
+  and a fee plan through the **real file-picker UI**.
+
 ## [1.0.16]
 
 ### Changed

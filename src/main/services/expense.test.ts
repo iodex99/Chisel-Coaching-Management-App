@@ -48,8 +48,11 @@ describe('expenses', () => {
     const cat = expense.listCategories()[0]
     const vendor = expense.createVendor({ name: 'Acme Supplies', contact: '99999' })
 
-    expense.createExpense({ expenseDate: '2026-06-01', categoryId: cat.id, vendorId: vendor.id, amount: 30000, mode: 'cash' })
-    expense.createExpense({ expenseDate: '2026-06-05', categoryId: cat.id, payee: 'Local shop', amount: 20000, mode: 'upi' })
+    // Date within the current month so the "this month" summary/byCategory include them.
+    const now = new Date()
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    expense.createExpense({ expenseDate: `${ym}-01`, categoryId: cat.id, vendorId: vendor.id, amount: 30000, mode: 'cash' })
+    expense.createExpense({ expenseDate: `${ym}-02`, categoryId: cat.id, payee: 'Local shop', amount: 20000, mode: 'upi' })
 
     expect(expense.listExpenses().length).toBe(2)
     expect(expense.listExpenses({ search: 'Acme' }).length).toBe(1)

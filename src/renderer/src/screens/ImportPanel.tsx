@@ -85,8 +85,10 @@ export function ImportPanel({ kind }: { kind: 'students' | 'fees' }): JSX.Elemen
 
       {kind === 'fees' && (
         <p className="text-xs text-slate-400">
-          Each fee row creates a plan split into equal monthly installments from the first due date. The student must
-          already exist (import students first).
+          Each row becomes a fee plan. Either fill <strong>Installments (equal split)</strong> + <strong>First Due
+          Date</strong> for equal monthly installments, or fill the <strong>Installment 1/2/3</strong> amount + date
+          columns for a custom schedule (their amounts must add up to the net fee). For more than 3 installments, create
+          the plan in the app. The student must already exist (import students first).
         </p>
       )}
     </div>

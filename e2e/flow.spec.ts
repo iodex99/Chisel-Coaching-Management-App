@@ -1,8 +1,19 @@
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { authenticator } from 'otplib'
-import { mkdtempSync, rmSync, existsSync } from 'fs'
+import ExcelJS from 'exceljs'
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+
+async function xlsx(sheet: string, header: string[], row: (string | number)[]): Promise<string> {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet(sheet)
+  ws.addRow(header)
+  ws.addRow(row)
+  const path = join(tmpdir(), `e2e-${sheet}-${header.length}.xlsx`)
+  writeFileSync(path, Buffer.from(await wb.xlsx.writeBuffer()))
+  return path
+}
 
 let app: ElectronApplication
 let page: Page
@@ -95,4 +106,30 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   await expect(page.getByPlaceholder(/Search by name, admission no/)).toBeVisible()
   await page.getByPlaceholder(/Search by name, admission no/).fill('Aarav')
   await expect(page.getByRole('button', { name: /Aarav Sharma/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Close' }).click()
+
+  // --- Bulk import through the real UI (students template, then a fee plan) ---
+  const stuPath = await xlsx(
+    'Students',
+    ['Admission No *', 'Admission Date (DD-MM-YYYY) *', 'First Name *', 'Last Name *', 'Gender *'],
+    ['E2E-1', '01-06-2026', 'Import', 'Test', 'male']
+  )
+  await page.getByRole('link', { name: 'Students' }).click()
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await page.locator('input[type="file"]').setInputFiles(stuPath)
+  await expect(page.getByText(/Imported 1 row/)).toBeVisible()
+  await page.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByText('Import Test')).toBeVisible()
+
+  const feePath = await xlsx(
+    'Fees',
+    ['Admission No', 'Total Fee (optional)', 'Installments (equal split)', 'First Due Date (DD-MM-YYYY)'],
+    ['E2E-1', 12000, 2, '01-06-2026']
+  )
+  await page.getByRole('link', { name: 'Fees' }).click()
+  await page.getByRole('button', { name: 'Import fee plans' }).click()
+  await page.locator('input[type="file"]').setInputFiles(feePath)
+  await expect(page.getByText(/Imported 1 row/)).toBeVisible()
+  await page.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByText('Import Test')).toBeVisible()
 })
