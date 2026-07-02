@@ -6,21 +6,28 @@ import { api, errMessage } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { DateField } from '../components/DateField'
 import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
-import { fmtDate, fmtMoney, isoToDisplay } from '../lib/format'
+import { fmtDate, fmtMoney, isoToDisplay, todayIso } from '../lib/format'
+import { currentFy } from '../lib/fy'
 
-const GROUPS = ['Fees & collection', 'Accounts', 'Students', 'Expenses'] as const
+const GROUPS = ['Summary', 'Registers', 'Fees & collection', 'Accounts', 'Students', 'Expenses'] as const
 type Group = (typeof GROUPS)[number]
 
 const REPORTS: { value: ReportType; label: string; group: Group }[] = [
+  { value: 'financial-summary', label: 'Financial summary', group: 'Summary' },
+  { value: 'monthly-net', label: 'Monthly collection vs expense (net)', group: 'Summary' },
+  { value: 'batch-performance', label: 'Batch performance', group: 'Summary' },
+  { value: 'payment-register', label: 'Payment register (detailed)', group: 'Registers' },
+  { value: 'expense-register', label: 'Expense register (detailed)', group: 'Registers' },
+  { value: 'daybook', label: 'Daybook (money in / out)', group: 'Registers' },
   { value: 'collection-by-student', label: 'Collection by student', group: 'Fees & collection' },
   { value: 'outstanding', label: 'Outstanding fees', group: 'Fees & collection' },
   { value: 'outstanding-by-batch', label: 'Outstanding by batch', group: 'Fees & collection' },
   { value: 'collection-by-date', label: 'Collection by date', group: 'Fees & collection' },
+  { value: 'daily-collection-mode', label: 'Daily collection by mode', group: 'Fees & collection' },
   { value: 'collection-by-mode', label: 'Collection by payment mode', group: 'Fees & collection' },
   { value: 'collection-by-batch', label: 'Collection summary (by batch)', group: 'Fees & collection' },
   { value: 'collection-by-school', label: 'Collection by school', group: 'Fees & collection' },
   { value: 'discounts-by-student', label: 'Discounts given', group: 'Fees & collection' },
-  { value: 'monthly-net', label: 'Monthly collection vs expense (net)', group: 'Fees & collection' },
   { value: 'collection-by-account', label: 'Collection by account (credited)', group: 'Accounts' },
   { value: 'account-summary', label: 'Account summary (in / out / balance)', group: 'Accounts' },
   { value: 'students-by-school', label: 'Students by school', group: 'Students' },
@@ -30,6 +37,9 @@ const REPORTS: { value: ReportType; label: string; group: Group }[] = [
   { value: 'expense-by-account', label: 'Expenses by account', group: 'Expenses' },
   { value: 'expense-by-month', label: 'Expenses by month', group: 'Expenses' }
 ]
+
+// Reports that ignore the date range (all-time snapshots).
+const DATELESS: ReportType[] = ['outstanding', 'outstanding-by-batch', 'batch-performance', 'students-by-school', 'discounts-by-student']
 
 function fmtCell(value: string | number | null, col: ReportColumn): string {
   if (value === null || value === undefined) return '—'
@@ -46,13 +56,35 @@ function csvValue(value: string | number | null, col: ReportColumn): string {
 }
 
 export default function Reports(): JSX.Element {
-  const [type, setType] = useState<ReportType>('collection-by-student')
+  const [type, setType] = useState<ReportType>('financial-summary')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [error, setError] = useState('')
   const [rowSearch, setRowSearch] = useState('')
   const [sort, setSort] = useState<Sort>({ key: '', dir: 'asc' })
   const onSort = (k: string): void => setSort((s) => toggleSort(s, k))
+  const dateless = DATELESS.includes(type)
+
+  function preset(p: 'month' | 'fy' | '30d' | 'all'): void {
+    if (p === 'all') {
+      setFrom('')
+      setTo('')
+      return
+    }
+    const t = todayIso()
+    if (p === 'month') {
+      setFrom(`${t.slice(0, 7)}-01`)
+      setTo(t)
+    } else if (p === 'fy') {
+      setFrom(`${currentFy().slice(0, 4)}-04-01`)
+      setTo(t)
+    } else {
+      const d = new Date()
+      d.setDate(d.getDate() - 30)
+      setFrom(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+      setTo(t)
+    }
+  }
   // A different report has different columns, so reset the row filter/sort.
   useEffect(() => {
     setRowSearch('')
@@ -124,11 +156,17 @@ export default function Reports(): JSX.Element {
         </div>
         <div className="w-40">
           <label className="label">From</label>
-          <DateField value={from} onChange={setFrom} disabled={type === 'outstanding'} />
+          <DateField value={from} onChange={setFrom} disabled={dateless} />
         </div>
         <div className="w-40">
           <label className="label">To</label>
-          <DateField value={to} onChange={setTo} disabled={type === 'outstanding'} />
+          <DateField value={to} onChange={setTo} disabled={dateless} />
+        </div>
+        <div className="flex items-center gap-1 pb-0.5">
+          <button className="btn-ghost px-2 py-1 text-xs" disabled={dateless} onClick={() => preset('month')}>This month</button>
+          <button className="btn-ghost px-2 py-1 text-xs" disabled={dateless} onClick={() => preset('fy')}>This FY</button>
+          <button className="btn-ghost px-2 py-1 text-xs" disabled={dateless} onClick={() => preset('30d')}>Last 30d</button>
+          <button className="btn-ghost px-2 py-1 text-xs" disabled={dateless} onClick={() => preset('all')}>All</button>
         </div>
         <button className="btn-outline" onClick={() => void exportExcel()} disabled={!data}>
           <FileSpreadsheet size={16} /> Excel

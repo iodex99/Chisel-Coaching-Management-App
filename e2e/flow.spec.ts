@@ -99,6 +99,10 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   await page.getByRole('link', { name: 'Post-dated Cheques' }).click()
   await expect(page.getByText('HDFC Bank')).toBeVisible()
 
+  // --- Reports: the default consolidated "Financial summary" renders ---
+  await page.getByRole('link', { name: 'Reports' }).click()
+  await expect(page.getByText('Net (collection − expense)')).toBeVisible()
+
   // --- Students: a sortable header round-trips to the backend on the seeded list ---
   await page.getByRole('link', { name: 'Students' }).click()
   await expect(page.getByText('Aarav Sharma')).toBeVisible()

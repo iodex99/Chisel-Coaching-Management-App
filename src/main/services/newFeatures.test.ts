@@ -152,6 +152,36 @@ describe('new reports', () => {
     const mrow = net.rows.find((r) => r.month === ym)!
     expect(mrow.net).toBe(Number(mrow.collected) - Number(mrow.spent))
   })
+
+  it('produces detailed registers, daybook and consolidated summaries', () => {
+    const range = { from: today, to: today }
+
+    const preg = report.getReport('payment-register', range)
+    expect(preg.rows.some((r) => Number(r.amount) === 50000 && r.mode === 'Bank Transfer')).toBe(true)
+    expect(Number(preg.totals?.amount)).toBeGreaterThanOrEqual(50000)
+
+    const ereg = report.getReport('expense-register', range)
+    expect(Number(ereg.totals?.amount)).toBeGreaterThanOrEqual(12000)
+
+    const day = report.getReport('daybook', range)
+    expect(Number(day.totals?.in)).toBeGreaterThanOrEqual(50000)
+    expect(Number(day.totals?.out)).toBeGreaterThanOrEqual(12000)
+
+    const dcm = report.getReport('daily-collection-mode', range)
+    const row = dcm.rows.find((r) => r.date === today)!
+    expect(Number(row.bank)).toBeGreaterThanOrEqual(50000)
+    expect(Number(row.total)).toBe(Number(row.cash) + Number(row.upi) + Number(row.bank) + Number(row.cheque) + Number(row.other))
+
+    const bp = report.getReport('batch-performance')
+    const rep = bp.rows.find((r) => r.batch === 'RepBatch')!
+    expect(rep.collected).toBe(50000)
+    expect(rep.pct).toBe(62.5) // 50000 / 80000 net
+
+    const fs = report.getReport('financial-summary', range)
+    expect(fs.rows.find((r) => r.metric === 'Collected')).toBeTruthy()
+    expect(fs.rows.find((r) => r.metric === 'Net (collection − expense)')).toBeTruthy()
+    expect(fs.rows.length).toBeGreaterThanOrEqual(6)
+  })
 })
 
 describe('new feature edge cases', () => {

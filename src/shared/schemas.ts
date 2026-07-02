@@ -297,6 +297,13 @@ export const expenseFilterSchema = z.object({
 
 export const reportRequestSchema = z.object({
   type: z.enum([
+    'financial-summary',
+    'monthly-net',
+    'batch-performance',
+    'daybook',
+    'payment-register',
+    'expense-register',
+    'daily-collection-mode',
     'collection-by-student',
     'outstanding',
     'collection-by-date',
@@ -308,7 +315,6 @@ export const reportRequestSchema = z.object({
     'outstanding-by-batch',
     'students-by-school',
     'discounts-by-student',
-    'monthly-net',
     'expense-by-date',
     'expense-by-category',
     'expense-by-vendor',

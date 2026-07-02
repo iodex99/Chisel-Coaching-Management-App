@@ -4,6 +4,25 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.21]
+
+### Added
+- **A much richer Reports section**, grouped into **Summary / Registers / Fees &
+  collection / Accounts / Students / Expenses** (default opens on the Financial
+  summary):
+  - **Consolidated:** **Financial summary** (period collected, expenses, net,
+    #payments, average payment, total outstanding, overdue, student counts in one
+    view) and **Batch performance** (students, net, collected, outstanding and
+    **collected %** per batch).
+  - **Detailed registers:** **Payment register** and **Expense register**
+    (every transaction with date/receipt/student-or-vendor/mode/account/amount),
+    and a **Daybook** (money **in vs out**, chronological, with totals).
+  - **Daily collection by mode** — a per-day pivot (Cash / UPI / Bank / Cheque /
+    Other / Total).
+  - **Quick date ranges:** This month · This FY · Last 30 days · All.
+- Every report still supports click-to-sort columns, a row filter, and CSV /
+  Excel / PDF export.
+
 ## [1.0.20]
 
 ### Changed

@@ -4,6 +4,7 @@ import { join } from 'path'
 import ExcelJS from 'exceljs'
 import { getDb } from '../db/database'
 import { listFeeSummaries } from './fee'
+import { listOverdue } from './dashboard'
 import { getInstituteProfile } from './settings'
 import { htmlToPdf } from './pdf'
 import { dataPath } from '../paths'
@@ -364,6 +365,200 @@ export function getReport(type: ReportType, range: ReportRange = {}): ReportResu
         ],
         rows,
         totals: sumRows(rows, ['collected', 'spent', 'net'])
+      }
+    }
+    case 'payment-register': {
+      const rows = db
+        .all<Row>(
+          `SELECT p.payment_date AS date, p.receipt_no AS receipt,
+                  (s.first_name || ' ' || COALESCE(s.last_name, '')) AS student,
+                  b.name AS batch, p.mode AS mode, a.name AS account, p.amount AS amount
+           FROM payments p JOIN students s ON s.id = p.student_id
+             LEFT JOIN batches b ON b.id = s.batch_id LEFT JOIN accounts a ON a.id = p.account_id
+           WHERE p.is_cancelled = 0${rangeClause('p.payment_date', range, params)}
+           ORDER BY p.payment_date, p.id`,
+          params
+        )
+        .map((r) => ({ ...r, mode: modeLabel(String(r.mode)) }))
+      return {
+        type,
+        title: 'Payment register',
+        columns: [
+          { key: 'date', label: 'Date', type: 'date' },
+          { key: 'receipt', label: 'Receipt' },
+          { key: 'student', label: 'Student' },
+          { key: 'batch', label: 'Batch' },
+          { key: 'mode', label: 'Mode' },
+          { key: 'account', label: 'Account' },
+          { key: 'amount', label: 'Amount', type: 'money', align: 'right' }
+        ],
+        rows,
+        totals: sumRows(rows, ['amount'])
+      }
+    }
+    case 'expense-register': {
+      const rows = db
+        .all<Row>(
+          `SELECT e.expense_date AS date, c.name AS category, COALESCE(v.name, e.payee) AS vendor,
+                  e.mode AS mode, a.name AS account, e.reference_no AS reference, e.amount AS amount
+           FROM expenses e LEFT JOIN expense_categories c ON c.id = e.category_id
+             LEFT JOIN vendors v ON v.id = e.vendor_id LEFT JOIN accounts a ON a.id = e.account_id
+           WHERE 1 = 1${rangeClause('e.expense_date', range, params)}
+           ORDER BY e.expense_date, e.id`,
+          params
+        )
+        .map((r) => ({ ...r, mode: modeLabel(String(r.mode)) }))
+      return {
+        type,
+        title: 'Expense register',
+        columns: [
+          { key: 'date', label: 'Date', type: 'date' },
+          { key: 'category', label: 'Category' },
+          { key: 'vendor', label: 'Vendor / Payee' },
+          { key: 'mode', label: 'Mode' },
+          { key: 'account', label: 'Account' },
+          { key: 'reference', label: 'Reference' },
+          { key: 'amount', label: 'Amount', type: 'money', align: 'right' }
+        ],
+        rows,
+        totals: sumRows(rows, ['amount'])
+      }
+    }
+    case 'daybook': {
+      const pParams: (string | number)[] = []
+      const pRange = rangeClause('p.payment_date', range, pParams)
+      const ins = db.all<{ date: string; particulars: string; amount: number }>(
+        `SELECT p.payment_date AS date,
+                ('Receipt ' || p.receipt_no || ' · ' || s.first_name || ' ' || COALESCE(s.last_name, '')) AS particulars,
+                p.amount AS amount
+         FROM payments p JOIN students s ON s.id = p.student_id
+         WHERE p.is_cancelled = 0${pRange}`,
+        pParams
+      )
+      const eParams: (string | number)[] = []
+      const eRange = rangeClause('e.expense_date', range, eParams)
+      const outs = db.all<{ date: string; particulars: string; amount: number }>(
+        `SELECT e.expense_date AS date,
+                (COALESCE(c.name, 'Expense') || COALESCE(' · ' || COALESCE(v.name, e.payee), '')) AS particulars,
+                e.amount AS amount
+         FROM expenses e LEFT JOIN expense_categories c ON c.id = e.category_id LEFT JOIN vendors v ON v.id = e.vendor_id
+         WHERE 1 = 1${eRange}`,
+        eParams
+      )
+      const rows: Row[] = [
+        ...ins.map((r) => ({ date: r.date, type: 'Payment', particulars: r.particulars, in: r.amount, out: 0 })),
+        ...outs.map((r) => ({ date: r.date, type: 'Expense', particulars: r.particulars, in: 0, out: r.amount }))
+      ].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      return {
+        type,
+        title: 'Daybook (money in / out)',
+        columns: [
+          { key: 'date', label: 'Date', type: 'date' },
+          { key: 'type', label: 'Type' },
+          { key: 'particulars', label: 'Particulars' },
+          { key: 'in', label: 'In', type: 'money', align: 'right' },
+          { key: 'out', label: 'Out', type: 'money', align: 'right' }
+        ],
+        rows,
+        totals: sumRows(rows, ['in', 'out'])
+      }
+    }
+    case 'daily-collection-mode': {
+      const rows = db.all<Row>(
+        `SELECT payment_date AS date,
+                SUM(CASE WHEN mode = 'cash' THEN amount ELSE 0 END) AS cash,
+                SUM(CASE WHEN mode = 'upi' THEN amount ELSE 0 END) AS upi,
+                SUM(CASE WHEN mode = 'bank_transfer' THEN amount ELSE 0 END) AS bank,
+                SUM(CASE WHEN mode = 'cheque' THEN amount ELSE 0 END) AS cheque,
+                SUM(CASE WHEN mode = 'other' THEN amount ELSE 0 END) AS other,
+                SUM(amount) AS total
+         FROM payments WHERE is_cancelled = 0${rangeClause('payment_date', range, params)}
+         GROUP BY payment_date ORDER BY payment_date DESC`,
+        params
+      )
+      return {
+        type,
+        title: 'Daily collection by mode',
+        columns: [
+          { key: 'date', label: 'Date', type: 'date' },
+          { key: 'cash', label: 'Cash', type: 'money', align: 'right' },
+          { key: 'upi', label: 'UPI', type: 'money', align: 'right' },
+          { key: 'bank', label: 'Bank', type: 'money', align: 'right' },
+          { key: 'cheque', label: 'Cheque', type: 'money', align: 'right' },
+          { key: 'other', label: 'Other', type: 'money', align: 'right' },
+          { key: 'total', label: 'Total', type: 'money', align: 'right' }
+        ],
+        rows,
+        totals: sumRows(rows, ['cash', 'upi', 'bank', 'cheque', 'other', 'total'])
+      }
+    }
+    case 'batch-performance': {
+      const agg = new Map<string, { students: number; net: number; paid: number; outstanding: number }>()
+      for (const s of listFeeSummaries()) {
+        const key = s.batchName ?? 'No batch'
+        const a = agg.get(key) ?? { students: 0, net: 0, paid: 0, outstanding: 0 }
+        a.students += 1
+        a.net += s.net
+        a.paid += s.paid
+        a.outstanding += s.outstanding
+        agg.set(key, a)
+      }
+      const pct = (paid: number, net: number): number => (net > 0 ? Math.round((paid / net) * 1000) / 10 : 0)
+      const rows: Row[] = [...agg.entries()]
+        .map(([batch, a]) => ({ batch, students: a.students, net: a.net, collected: a.paid, outstanding: a.outstanding, pct: pct(a.paid, a.net) }))
+        .sort((x, y) => Number(y.net) - Number(x.net))
+      const totals = sumRows(rows, ['students', 'net', 'collected', 'outstanding'])
+      totals.pct = pct(Number(totals.collected), Number(totals.net))
+      return {
+        type,
+        title: 'Batch performance',
+        columns: [
+          { key: 'batch', label: 'Batch' },
+          { key: 'students', label: 'Students', type: 'number', align: 'right' },
+          { key: 'net', label: 'Net fee', type: 'money', align: 'right' },
+          { key: 'collected', label: 'Collected', type: 'money', align: 'right' },
+          { key: 'outstanding', label: 'Outstanding', type: 'money', align: 'right' },
+          { key: 'pct', label: 'Collected %', type: 'number', align: 'right' }
+        ],
+        rows,
+        totals
+      }
+    }
+    case 'financial-summary': {
+      const pParams: (string | number)[] = []
+      const pRange = rangeClause('payment_date', range, pParams)
+      const coll = db.get<{ c: number; a: number }>(
+        `SELECT COUNT(*) AS c, COALESCE(SUM(amount), 0) AS a FROM payments WHERE is_cancelled = 0${pRange}`,
+        pParams
+      )
+      const eParams: (string | number)[] = []
+      const eRange = rangeClause('expense_date', range, eParams)
+      const spent = db.get<{ a: number }>(`SELECT COALESCE(SUM(amount), 0) AS a FROM expenses WHERE 1 = 1${eRange}`, eParams)?.a ?? 0
+      const collected = coll?.a ?? 0
+      const pc = coll?.c ?? 0
+      const summaries = listFeeSummaries()
+      const outstanding = summaries.reduce((s, x) => s + x.outstanding, 0)
+      const overdue = listOverdue().reduce((s, x) => s + x.outstanding, 0)
+      const studentsAll = db.get<{ c: number }>('SELECT COUNT(*) AS c FROM students')?.c ?? 0
+      const activeStu = db.get<{ c: number }>("SELECT COUNT(*) AS c FROM students WHERE status = 'active'")?.c ?? 0
+      const rows: Row[] = [
+        { metric: 'Collected', value: money(collected) },
+        { metric: 'Expenses', value: money(spent) },
+        { metric: 'Net (collection − expense)', value: money(collected - spent) },
+        { metric: 'Payments recorded', value: String(pc) },
+        { metric: 'Average payment', value: money(pc ? Math.round(collected / pc) : 0) },
+        { metric: 'Total outstanding (all-time)', value: money(outstanding) },
+        { metric: 'Overdue (all-time)', value: money(overdue) },
+        { metric: 'Students (total / active)', value: `${studentsAll} / ${activeStu}` }
+      ]
+      return {
+        type,
+        title: 'Financial summary',
+        columns: [
+          { key: 'metric', label: 'Metric' },
+          { key: 'value', label: 'Value', align: 'right' }
+        ],
+        rows
       }
     }
     default:
