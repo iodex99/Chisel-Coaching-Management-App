@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import ExcelJS from 'exceljs'
 
 vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: () => process.cwd(), getPath: () => process.cwd() },
@@ -21,6 +22,7 @@ import * as payments from './payment'
 import * as expense from './expense'
 import * as pdc from './pdc'
 import * as report from './report'
+import * as importer from './import'
 import { getReceiptData } from './payment'
 import { renderReceiptHtml } from './receipt'
 import { todayISO } from './fy'
@@ -149,5 +151,61 @@ describe('new reports', () => {
     const ym = today.slice(0, 7)
     const mrow = net.rows.find((r) => r.month === ym)!
     expect(mrow.net).toBe(Number(mrow.collected) - Number(mrow.spent))
+  })
+})
+
+describe('new feature edge cases', () => {
+  it('updates then clears a student school', () => {
+    const a = school.createSchool({ name: 'Edge-A', isActive: true })
+    const b = school.createSchool({ name: 'Edge-B', isActive: true })
+    const base = { admissionNo: 'ESU-1', firstName: 'X', lastName: 'Y', gender: 'male', status: 'active' as const, guardians: [] }
+    const s = students.createStudent({ ...base, schoolId: a.id })
+    students.updateStudent(s.id, { ...base, schoolId: b.id })
+    expect(students.getStudent(s.id)?.schoolName).toBe('Edge-B')
+    students.updateStudent(s.id, { ...base, schoolId: null })
+    expect(students.getStudent(s.id)?.schoolId).toBe(null)
+    expect(students.getStudent(s.id)?.schoolName).toBe(null)
+  })
+
+  it('PDC due includes today, excludes settled, and deletes', () => {
+    const s = students.createStudent({ admissionNo: 'EPD-1', firstName: 'P', lastName: 'D', gender: 'male', status: 'active', guardians: [] })
+    const t = pdc.createPdc({ studentId: s.id, amount: 1000, depositDate: today })
+    expect(pdc.listPdcDue(0).some((p) => p.id === t.id)).toBe(true) // 0-day window includes today
+    pdc.setPdcStatus(t.id, 'cancelled')
+    expect(pdc.listPdcDue(0).some((p) => p.id === t.id)).toBe(false) // settled -> not due
+    pdc.deletePdc(t.id)
+    expect(pdc.getPdc(t.id)).toBeUndefined()
+  })
+
+  it('buckets unassigned account/school/batch and honours date ranges', () => {
+    // Student with NO batch/school, a plan, and a payment with NO account in a unique month.
+    const s = students.createStudent({ admissionNo: 'ENO-1', firstName: 'N', lastName: 'O', gender: 'male', status: 'active', guardians: [] })
+    const plan = fees.saveFeePlan(s.id, { name: 'P', totalAmount: 5000, discount: 0, installments: [{ dueAmount: 5000, dueDate: '2035-01-15' }] })
+    payments.recordPayment({ studentId: s.id, amount: 2000, paymentDate: '2035-01-10', mode: 'cash', allocations: [{ installmentId: plan.installments[0].id, amount: 2000 }] })
+
+    const acc = report.getReport('collection-by-account', { from: '2035-01-01', to: '2035-01-31' })
+    expect(acc.rows.find((r) => r.account === 'No account')?.amount).toBe(2000)
+    const sch = report.getReport('collection-by-school', { from: '2035-01-01', to: '2035-01-31' })
+    expect(sch.rows.find((r) => r.school === 'No school')?.amount).toBe(2000)
+    const ob = report.getReport('outstanding-by-batch')
+    expect(Number(ob.rows.find((r) => r.batch === 'No batch')?.outstanding)).toBe(3000)
+    const net = report.getReport('monthly-net', { from: '2035-01-01', to: '2035-01-31' })
+    expect(net.rows).toHaveLength(1)
+    expect(net.rows[0].collected).toBe(2000)
+    expect(net.rows[0].net).toBe(2000)
+  })
+
+  it('imports a student with only guardian 2 filled', async () => {
+    const header = [
+      'Admission No *', 'Admission Date (DD-MM-YYYY) *', 'First Name *', 'Last Name *', 'Gender *', 'Phone', 'Email',
+      'Batch', 'School', 'Status', 'Guardian 1 Name', 'Guardian 1 Relation', 'Guardian 1 Phone', 'Guardian 2 Name', 'Guardian 2 Relation', 'Guardian 2 Phone'
+    ]
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Students')
+    ws.addRow(header)
+    ws.addRow(['G2-1', '01-04-2026', 'A', 'B', 'male', '', '', '', '', 'active', '', '', '', 'OnlyG2', 'Guardian', '9'])
+    const res = await importer.importStudents(Buffer.from(await wb.xlsx.writeBuffer()))
+    expect(res.imported).toBe(1)
+    expect(students.getStudent(students.listStudents({ search: 'G2-1' })[0].id)?.guardians.map((g) => g.name)).toEqual(['OnlyG2'])
   })
 })

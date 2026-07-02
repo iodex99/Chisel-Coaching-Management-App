@@ -4,6 +4,24 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.20]
+
+### Changed
+- **Sample data now covers the new modules.** “Load / refresh sample data” seeds
+  students spread across sample **schools** (including one inactive), and
+  **post-dated cheques in every state** — due-now, upcoming, future, deposited
+  and bounced — so School Master, the cheque reminders + dashboard card, and the
+  school/account reports all populate for a demo.
+
+### Fixed
+- Dashboard computed the post-dated-cheque summary query twice; now once.
+
+### Tests
+- Added edge-case tests: student school update/clear, PDC deposit-date boundary /
+  settled-exclusion / delete, reports’ unassigned (No account/school/batch)
+  buckets and date-range handling, and guardian-2-only import. 107 unit tests +
+  E2E pass; a broad adversarial edge-case audit surfaced no real defects.
+
 ## [1.0.19]
 
 ### Added

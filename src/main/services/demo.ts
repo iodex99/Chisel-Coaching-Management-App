@@ -3,7 +3,7 @@ import { financialYear } from './fy'
 import { createAccount } from './account'
 import { createBatch } from './batch'
 import { createSchool } from './school'
-import { createPdc } from './pdc'
+import { createPdc, setPdcStatus } from './pdc'
 import { createStudent } from './student'
 import { saveFeePlan } from './fee'
 import { recordPayment, cancelPayment } from './payment'
@@ -135,6 +135,7 @@ export async function seedDemoData(): Promise<SeedResult> {
     createSchool({ name: "St. Xavier's (Sample)", area: 'Civil Lines', contact: '9811100012', isActive: true }).id,
     createSchool({ name: 'Kendriya Vidyalaya (Sample)', area: 'Cantt', contact: '9811100013', isActive: true }).id
   ]
+  createSchool({ name: 'Little Flowers (closed) (Sample)', area: 'Old Town', isActive: false }) // an inactive school
 
   let admN = 1
   const adm = (): string => `S2026-${String(admN++).padStart(3, '0')}`
@@ -293,10 +294,14 @@ export async function seedDemoData(): Promise<SeedResult> {
   exp(dayOffset(-1), cMaint, R(2500), 'cash', cash, vClean, 'AC servicing')
   exp(monthDay(2, 20), cStat, R(4500), 'cash', cash, vPrint, 'Whiteboard markers & paper')
 
-  // --- Post-dated cheques (one due now, one upcoming, one further out) ---
-  createPdc({ studentId: s3, amount: R(20000), chequeNo: '100234', bank: 'HDFC Bank', depositDate: dayOffset(-2), notes: 'Term 2 PDC' })
-  createPdc({ studentId: s9, amount: R(15000), chequeNo: '556120', bank: 'SBI', depositDate: dayOffset(7) })
-  createPdc({ studentId: s5, amount: R(10000), chequeNo: '778001', bank: 'ICICI', depositDate: dayOffset(45) })
+  // --- Post-dated cheques across every status ---
+  createPdc({ studentId: s3, amount: R(20000), chequeNo: '100234', bank: 'HDFC Bank', depositDate: dayOffset(-2), notes: 'Term 2 PDC' }) // due now (overdue)
+  createPdc({ studentId: s9, amount: R(15000), chequeNo: '556120', bank: 'SBI', depositDate: dayOffset(7) }) // upcoming (in reminder window)
+  createPdc({ studentId: s5, amount: R(10000), chequeNo: '778001', bank: 'ICICI', depositDate: dayOffset(45) }) // further out
+  const dep = createPdc({ studentId: s2, amount: R(12000), chequeNo: '445100', bank: 'Axis', depositDate: dayOffset(-20) })
+  setPdcStatus(dep.id, 'deposited') // already deposited
+  const bnc = createPdc({ studentId: s6, amount: R(8000), chequeNo: '990088', bank: 'PNB', depositDate: dayOffset(-10) })
+  setPdcStatus(bnc.id, 'bounced') // bounced
 
   const counts = getDb().get<{ s: number; p: number; e: number }>(
     'SELECT (SELECT COUNT(*) FROM students) AS s, (SELECT COUNT(*) FROM payments WHERE is_cancelled = 0) AS p, (SELECT COUNT(*) FROM expenses) AS e'
