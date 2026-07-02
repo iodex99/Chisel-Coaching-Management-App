@@ -21,6 +21,7 @@ export default function Students(): JSX.Element {
   const nav = useNavigate()
   const [search, setSearch] = useState('')
   const [batchId, setBatchId] = useState<number | ''>('')
+  const [schoolId, setSchoolId] = useState<number | ''>('')
   const [status, setStatus] = useState<StudentStatus | 'all'>('active')
   const [gender, setGender] = useState('')
   const [sort, setSort] = useState<Sort>({ key: 'name', dir: 'asc' })
@@ -29,15 +30,17 @@ export default function Students(): JSX.Element {
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(PAGE_SIZE)
   const [importing, setImporting] = useState(false)
-  useEffect(() => setPage(0), [search, batchId, status, gender, sort, pageSize])
+  useEffect(() => setPage(0), [search, batchId, schoolId, status, gender, sort, pageSize])
 
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: () => api.schools.list() })
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students', search, batchId, status, gender, sort, page, pageSize],
+    queryKey: ['students', search, batchId, schoolId, status, gender, sort, page, pageSize],
     queryFn: () =>
       api.students.list({
         search: search || undefined,
         batchId: batchId === '' ? undefined : batchId,
+        schoolId: schoolId === '' ? undefined : schoolId,
         status,
         gender: gender || undefined,
         sortBy: sort.key as StudentFilter['sortBy'],
@@ -94,6 +97,14 @@ export default function Students(): JSX.Element {
           <option value="male">Male</option>
           <option value="female">Female</option>
           <option value="other">Other</option>
+        </select>
+        <select className="input w-48" value={schoolId} onChange={(e) => setSchoolId(e.target.value === '' ? '' : Number(e.target.value))}>
+          <option value="">All schools</option>
+          {schools.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
         </select>
       </div>
 

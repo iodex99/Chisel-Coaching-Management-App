@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { AlertTriangle, CalendarClock } from 'lucide-react'
+import { AlertTriangle, CalendarClock, FileCheck2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { fmtDate, fmtMoney } from '../lib/format'
 
@@ -62,6 +62,15 @@ export default function Dashboard(): JSX.Element {
               <div className="text-sm text-slate-500">Installments due in the next 14 days</div>
             </div>
           </button>
+          {(data?.pdcDueCount ?? 0) > 0 && (
+            <button onClick={() => nav('/cheques')} className="card flex w-full items-center gap-4 p-5 text-left hover:bg-slate-50">
+              <FileCheck2 className="text-amber-500" />
+              <div>
+                <div className="text-2xl font-semibold text-amber-600">{fmtMoney(data?.pdcDueAmount)}</div>
+                <div className="text-sm text-slate-500">{data?.pdcDueCount} cheque(s) to deposit now</div>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 

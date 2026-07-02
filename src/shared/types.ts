@@ -175,6 +175,7 @@ export interface Student {
   email: string | null
   address: string | null
   batchId: number | null
+  schoolId: number | null
   admissionDate: string | null
   status: StudentStatus
   notes: string | null
@@ -191,10 +192,12 @@ export interface StudentListItem {
   status: StudentStatus
   batchId: number | null
   batchName: string | null
+  schoolName: string | null
 }
 
 export interface StudentDetail extends Student {
   batchName: string | null
+  schoolName: string | null
   guardians: Guardian[]
 }
 
@@ -208,10 +211,32 @@ export interface StudentInput {
   email?: string
   address?: string
   batchId?: number | null
+  schoolId?: number | null
   admissionDate?: string
   status: StudentStatus
   notes?: string
   guardians: GuardianInput[]
+}
+
+// --- Schools (school master) ---
+
+export interface School {
+  id: number
+  name: string
+  area: string | null
+  contact: string | null
+  isActive: boolean
+}
+
+export interface SchoolSummary extends School {
+  studentCount: number
+}
+
+export interface SchoolInput {
+  name: string
+  area?: string
+  contact?: string
+  isActive: boolean
 }
 
 export type SortDir = 'asc' | 'desc'
@@ -219,6 +244,7 @@ export type SortDir = 'asc' | 'desc'
 export interface StudentFilter {
   search?: string
   batchId?: number | null
+  schoolId?: number | null
   status?: StudentStatus | 'all'
   gender?: string
   sortBy?: 'name' | 'admissionNo' | 'admissionDate' | 'createdAt' | 'batch'
@@ -396,8 +422,42 @@ export interface DashboardData {
   overdueStudents: number
   overdueAmount: number
   upcomingCount: number
+  pdcDueCount: number
+  pdcDueAmount: number
   collectionTrend: { month: string; label: string; amount: number }[]
   recentPayments: PaymentListItem[]
+}
+
+// --- Post-dated cheques (PDCs) ---
+
+export type PdcStatus = 'pending' | 'deposited' | 'bounced' | 'cancelled'
+
+export interface PostDatedCheque {
+  id: number
+  studentId: number | null
+  studentName: string | null
+  amount: number
+  chequeNo: string | null
+  bank: string | null
+  depositDate: string
+  status: PdcStatus
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PdcInput {
+  studentId?: number | null
+  amount: number
+  chequeNo?: string
+  bank?: string
+  depositDate: string
+  notes?: string
+}
+
+export interface PdcFilter {
+  status?: PdcStatus | 'all'
+  search?: string
 }
 
 // --- Expenses ---
@@ -509,6 +569,13 @@ export type ReportType =
   | 'collection-by-date'
   | 'collection-by-mode'
   | 'collection-by-batch'
+  | 'collection-by-account'
+  | 'collection-by-school'
+  | 'account-summary'
+  | 'outstanding-by-batch'
+  | 'students-by-school'
+  | 'discounts-by-student'
+  | 'monthly-net'
   | 'expense-by-date'
   | 'expense-by-category'
   | 'expense-by-vendor'

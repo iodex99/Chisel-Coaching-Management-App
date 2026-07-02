@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs'
 import { dataPath } from '../paths'
 import { getDb } from '../db/database'
 import { listBatches } from './batch'
+import { listSchools } from './school'
 import { createStudent } from './student'
 import { saveFeePlan } from './fee'
 import type { ImportResult, StudentStatus } from '@shared/types'
@@ -78,11 +79,14 @@ function buildStudentsTemplate(): ExcelJS.Workbook {
   lists.state = 'veryHidden'
 
   const batches = listBatches().map((b) => b.name)
+  const schools = listSchools().map((s) => s.name)
   batches.forEach((n, i) => (lists.getCell(`A${i + 1}`).value = n))
   ;['male', 'female', 'other'].forEach((g, i) => (lists.getCell(`B${i + 1}`).value = g))
   ;['active', 'inactive', 'dropped', 'completed'].forEach((s, i) => (lists.getCell(`C${i + 1}`).value = s))
+  schools.forEach((n, i) => (lists.getCell(`D${i + 1}`).value = n))
 
-  // Columns A..L. Fields marked * are required.
+  // Columns A..P. Fields marked * are required. Batch (H) and School (I) are
+  // dynamic dropdowns from the current batches / school master.
   ws.columns = [
     { header: 'Admission No *', width: 14 }, // A
     { header: 'Admission Date (DD-MM-YYYY) *', width: 26 }, // B
@@ -92,18 +96,24 @@ function buildStudentsTemplate(): ExcelJS.Workbook {
     { header: 'Phone', width: 14 }, // F
     { header: 'Email', width: 22 }, // G
     { header: 'Batch', width: 22 }, // H (dropdown)
-    { header: 'Status', width: 12 }, // I (dropdown)
-    { header: 'Guardian Name', width: 20 }, // J
-    { header: 'Guardian Relation', width: 16 }, // K
-    { header: 'Guardian Phone', width: 16 } // L
+    { header: 'School', width: 22 }, // I (dropdown)
+    { header: 'Status', width: 12 }, // J (dropdown)
+    { header: 'Guardian 1 Name', width: 18 }, // K
+    { header: 'Guardian 1 Relation', width: 16 }, // L
+    { header: 'Guardian 1 Phone', width: 16 }, // M
+    { header: 'Guardian 2 Name', width: 18 }, // N
+    { header: 'Guardian 2 Relation', width: 16 }, // O
+    { header: 'Guardian 2 Phone', width: 16 } // P
   ]
   ws.getRow(1).font = { bold: true }
 
   const lastBatch = Math.max(batches.length, 1)
+  const lastSchool = Math.max(schools.length, 1)
   for (let r = 2; r <= 500; r++) {
     ws.getCell(`E${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$B$1:$B$3'] }
     ws.getCell(`H${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: [`Lists!$A$1:$A$${lastBatch}`] }
-    ws.getCell(`I${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$C$1:$C$4'] }
+    ws.getCell(`I${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: [`Lists!$D$1:$D$${lastSchool}`] }
+    ws.getCell(`J${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['Lists!$C$1:$C$4'] }
   }
   return wb
 }
@@ -189,10 +199,14 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
     phone: findCol(h, ['phone', 'mobile']),
     email: findCol(h, ['email']),
     batch: findCol(h, ['batch', 'class']),
+    school: findCol(h, ['school']),
     status: findCol(h, ['status']),
-    gName: findCol(h, ['guardianname'], 'guardianname'),
-    gRelation: findCol(h, ['guardianrelation'], 'guardianrelation'),
-    gPhone: findCol(h, ['guardianphone'], 'guardianphone')
+    g1Name: findCol(h, ['guardian1name', 'guardianname']),
+    g1Relation: findCol(h, ['guardian1relation', 'guardianrelation']),
+    g1Phone: findCol(h, ['guardian1phone', 'guardianphone']),
+    g2Name: findCol(h, ['guardian2name']),
+    g2Relation: findCol(h, ['guardian2relation']),
+    g2Phone: findCol(h, ['guardian2phone'])
   }
   const missingCols: string[] = []
   if (!c.adm) missingCols.push('Admission No')
@@ -205,6 +219,7 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
   }
 
   const batchByName = new Map(listBatches().map((b) => [b.name.toLowerCase(), b.id]))
+  const schoolByName = new Map(listSchools().map((s) => [s.name.toLowerCase(), s.id]))
   const result: ImportResult = { imported: 0, errors: [] }
 
   for (let r = 2; r <= ws.rowCount; r++) {
@@ -248,13 +263,25 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
       batchId = id
     }
 
+    let schoolId: number | null = null
+    const schoolName = cellText(row, c.school)
+    if (schoolName) {
+      const id = schoolByName.get(schoolName.toLowerCase())
+      if (!id) {
+        result.errors.push({ row: r, message: `Unknown school "${schoolName}" — add it to the school master first or fix the spelling` })
+        continue
+      }
+      schoolId = id
+    }
+
     const statusRaw = cellText(row, c.status).toLowerCase()
     const status = (STATUSES as string[]).includes(statusRaw) ? (statusRaw as StudentStatus) : 'active'
 
-    const guardianName = cellText(row, c.gName)
-    const guardians = guardianName
-      ? [{ name: guardianName, relation: cellText(row, c.gRelation) || undefined, phone: cellText(row, c.gPhone) || undefined }]
-      : []
+    const guardians: { name: string; relation?: string; phone?: string }[] = []
+    const g1 = cellText(row, c.g1Name)
+    if (g1) guardians.push({ name: g1, relation: cellText(row, c.g1Relation) || undefined, phone: cellText(row, c.g1Phone) || undefined })
+    const g2 = cellText(row, c.g2Name)
+    if (g2) guardians.push({ name: g2, relation: cellText(row, c.g2Relation) || undefined, phone: cellText(row, c.g2Phone) || undefined })
 
     try {
       createStudent({
@@ -265,6 +292,7 @@ export async function importStudents(bytes: Buffer): Promise<ImportResult> {
         phone: cellText(row, c.phone) || undefined,
         email: cellText(row, c.email) || undefined,
         batchId,
+        schoolId,
         status,
         admissionDate: admDate,
         guardians

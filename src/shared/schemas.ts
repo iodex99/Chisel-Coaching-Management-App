@@ -79,6 +79,36 @@ export const accountInputSchema = z.object({
 })
 export const accountUpdateSchema = z.object({ id: z.number().int().positive(), input: accountInputSchema })
 
+// --- Schools (school master) ---
+
+export const schoolInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  area: z.string().trim().max(120).optional(),
+  contact: z.string().trim().max(60).optional(),
+  isActive: z.boolean().default(true)
+})
+export const schoolUpdateSchema = z.object({ id: z.number().int().positive(), input: schoolInputSchema })
+
+// --- Post-dated cheques ---
+
+export const pdcInputSchema = z.object({
+  studentId: z.number().int().positive().nullable().optional(),
+  amount: z.number().int().positive('Amount must be greater than zero'),
+  chequeNo: z.string().trim().max(40).optional(),
+  bank: z.string().trim().max(80).optional(),
+  depositDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'A valid deposit date is required'),
+  notes: z.string().trim().max(300).optional()
+})
+export const pdcStatusSchema = z.object({
+  id: z.number().int().positive(),
+  status: z.enum(['pending', 'deposited', 'bounced', 'cancelled'])
+})
+export const pdcFilterSchema = z.object({
+  status: z.enum(['pending', 'deposited', 'bounced', 'cancelled', 'all']).optional(),
+  search: z.string().trim().max(80).optional()
+})
+export const pdcDueSchema = z.object({ days: z.number().int().min(0).max(365).default(7) })
+
 // --- Batches ---
 
 export const batchInputSchema = z.object({
@@ -113,6 +143,7 @@ export const studentInputSchema = z.object({
   email: z.string().trim().max(120).optional(),
   address: z.string().trim().max(300).optional(),
   batchId: z.number().int().positive().nullable().optional(),
+  schoolId: z.number().int().positive().nullable().optional(),
   admissionDate: isoDateRequired('Admission date is required'),
   status: z.enum(['active', 'inactive', 'dropped', 'completed']).default('active'),
   notes: z.string().trim().max(1000).optional(),
@@ -130,6 +161,7 @@ const sortDir = z.enum(['asc', 'desc']).optional()
 export const studentFilterSchema = z.object({
   search: z.string().trim().max(80).optional(),
   batchId: z.number().int().positive().nullable().optional(),
+  schoolId: z.number().int().positive().nullable().optional(),
   status: z.enum(['active', 'inactive', 'dropped', 'completed', 'all']).optional(),
   gender: z.string().trim().max(10).optional(),
   sortBy: z.enum(['name', 'admissionNo', 'admissionDate', 'createdAt', 'batch']).optional(),
@@ -270,6 +302,13 @@ export const reportRequestSchema = z.object({
     'collection-by-date',
     'collection-by-mode',
     'collection-by-batch',
+    'collection-by-account',
+    'collection-by-school',
+    'account-summary',
+    'outstanding-by-batch',
+    'students-by-school',
+    'discounts-by-student',
+    'monthly-net',
     'expense-by-date',
     'expense-by-category',
     'expense-by-vendor',

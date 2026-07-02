@@ -19,6 +19,7 @@ const EMPTY: StudentInput = {
   email: '',
   address: '',
   batchId: null,
+  schoolId: null,
   admissionDate: '',
   status: 'active',
   notes: '',
@@ -36,6 +37,7 @@ export default function StudentForm(): JSX.Element {
   const [busy, setBusy] = useState(false)
 
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() })
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: () => api.schools.list() })
   const { data: student } = useQuery({
     queryKey: ['student', studentId],
     queryFn: () => api.students.get({ id: studentId as number }),
@@ -55,6 +57,7 @@ export default function StudentForm(): JSX.Element {
         email: student.email ?? '',
         address: student.address ?? '',
         batchId: student.batchId,
+        schoolId: student.schoolId,
         admissionDate: student.admissionDate ?? '',
         status: student.status,
         notes: student.notes ?? '',
@@ -182,6 +185,21 @@ export default function StudentForm(): JSX.Element {
                 {batches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">School</label>
+              <select
+                className="input"
+                value={form.schoolId ?? ''}
+                onChange={(e) => set('schoolId', e.target.value === '' ? null : Number(e.target.value))}
+              >
+                <option value="">— None —</option>
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>

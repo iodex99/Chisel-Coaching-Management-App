@@ -5,8 +5,13 @@
 ### Student management
 - Student master database with profile creation/maintenance. Required fields:
   admission no, admission date, first name, last name, gender.
-- Parent/guardian details per student.
-- Course/batch allocation.
+- Parent/guardian details per student (import supports two guardians).
+- Course/batch allocation and **school** (from the School Master).
+- **School Master:** the set of schools students are drawn from; a student's
+  school is selectable in the form, the import template (dynamic dropdown), and
+  is filterable in the list and reports.
+- **Post-dated cheques:** record cheques for future deposit; the app reminds you
+  (Due Monitoring + dashboard) when the deposit date arrives.
 - Admission records (admission no, date, status).
 - **Bulk import** of students (and fee plans) from an Excel template with
   dropdowns for batch/gender/status and per-row validation.

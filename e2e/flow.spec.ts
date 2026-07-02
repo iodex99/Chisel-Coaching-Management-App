@@ -93,6 +93,12 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   await page.getByRole('button', { name: /Load.*sample data/ }).click()
   await expect(page.getByText(/Loaded sample data/)).toBeVisible({ timeout: 20000 })
 
+  // --- School Master and Post-dated Cheques screens render the seeded data ---
+  await page.getByRole('link', { name: 'School Master' }).click()
+  await expect(page.getByText(/Delhi Public School/)).toBeVisible()
+  await page.getByRole('link', { name: 'Post-dated Cheques' }).click()
+  await expect(page.getByText('HDFC Bank')).toBeVisible()
+
   // --- Students: a sortable header round-trips to the backend on the seeded list ---
   await page.getByRole('link', { name: 'Students' }).click()
   await expect(page.getByText('Aarav Sharma')).toBeVisible()

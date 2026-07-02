@@ -22,6 +22,7 @@ interface StudentRow {
   email: string | null
   address: string | null
   batch_id: number | null
+  school_id: number | null
   admission_date: string | null
   status: Student['status']
   notes: string | null
@@ -41,6 +42,7 @@ function map(r: StudentRow): Student {
     email: r.email,
     address: r.address,
     batchId: r.batch_id,
+    schoolId: r.school_id,
     admissionDate: r.admission_date,
     status: r.status,
     notes: r.notes,
@@ -60,6 +62,10 @@ export function listStudents(filter: StudentFilter = {}): StudentListItem[] {
     where.push('s.batch_id = ?')
     params.push(filter.batchId)
   }
+  if (filter.schoolId) {
+    where.push('s.school_id = ?')
+    params.push(filter.schoolId)
+  }
   if (filter.gender) {
     where.push('s.gender = ?')
     params.push(filter.gender)
@@ -78,8 +84,9 @@ export function listStudents(filter: StudentFilter = {}): StudentListItem[] {
     batch: `b.name ${dir}`
   }
   let sql = `
-    SELECT s.id, s.admission_no, s.first_name, s.last_name, s.phone, s.status, s.batch_id, b.name AS batch_name
-    FROM students s LEFT JOIN batches b ON b.id = s.batch_id
+    SELECT s.id, s.admission_no, s.first_name, s.last_name, s.phone, s.status, s.batch_id,
+           b.name AS batch_name, sc.name AS school_name
+    FROM students s LEFT JOIN batches b ON b.id = s.batch_id LEFT JOIN schools sc ON sc.id = s.school_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY ${orderBy[filter.sortBy ?? 'name']}`
   if (filter.limit) {
@@ -87,7 +94,7 @@ export function listStudents(filter: StudentFilter = {}): StudentListItem[] {
     params.push(Math.min(filter.limit, 500), filter.offset ?? 0)
   }
   return getDb()
-    .all<StudentRow & { batch_name: string | null }>(sql, params)
+    .all<StudentRow & { batch_name: string | null; school_name: string | null }>(sql, params)
     .map((r) => ({
       id: r.id,
       admissionNo: r.admission_no,
@@ -96,7 +103,8 @@ export function listStudents(filter: StudentFilter = {}): StudentListItem[] {
       phone: r.phone,
       status: r.status,
       batchId: r.batch_id,
-      batchName: r.batch_name
+      batchName: r.batch_name,
+      schoolName: r.school_name
     }))
 }
 
@@ -110,12 +118,14 @@ function loadGuardians(studentId: number): Guardian[] {
 }
 
 export function getStudent(id: number): StudentDetail | undefined {
-  const r = getDb().get<StudentRow & { batch_name: string | null }>(
-    'SELECT s.*, b.name AS batch_name FROM students s LEFT JOIN batches b ON b.id = s.batch_id WHERE s.id = ?',
+  const r = getDb().get<StudentRow & { batch_name: string | null; school_name: string | null }>(
+    `SELECT s.*, b.name AS batch_name, sc.name AS school_name
+     FROM students s LEFT JOIN batches b ON b.id = s.batch_id LEFT JOIN schools sc ON sc.id = s.school_id
+     WHERE s.id = ?`,
     [id]
   )
   if (!r) return undefined
-  return { ...map(r), batchName: r.batch_name, guardians: loadGuardians(id) }
+  return { ...map(r), batchName: r.batch_name, schoolName: r.school_name, guardians: loadGuardians(id) }
 }
 
 function replaceGuardians(d: Db, studentId: number, guardians: GuardianInput[]): void {
@@ -143,8 +153,8 @@ export function createStudent(input: StudentInput): StudentDetail {
   try {
     const id = getDb().transaction((d) => {
       const sid = d.run(
-        `INSERT INTO students (admission_no, first_name, last_name, gender, dob, phone, email, address, batch_id, admission_date, status, notes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO students (admission_no, first_name, last_name, gender, dob, phone, email, address, batch_id, school_id, admission_date, status, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.admissionNo,
           input.firstName,
@@ -155,6 +165,7 @@ export function createStudent(input: StudentInput): StudentDetail {
           input.email ?? null,
           input.address ?? null,
           input.batchId ?? null,
+          input.schoolId ?? null,
           input.admissionDate ?? null,
           input.status,
           input.notes ?? null,
@@ -175,7 +186,7 @@ export function updateStudent(id: number, input: StudentInput): StudentDetail {
   try {
     getDb().transaction((d) => {
       d.run(
-        `UPDATE students SET admission_no = ?, first_name = ?, last_name = ?, gender = ?, dob = ?, phone = ?, email = ?, address = ?, batch_id = ?, admission_date = ?, status = ?, notes = ?, updated_at = ?
+        `UPDATE students SET admission_no = ?, first_name = ?, last_name = ?, gender = ?, dob = ?, phone = ?, email = ?, address = ?, batch_id = ?, school_id = ?, admission_date = ?, status = ?, notes = ?, updated_at = ?
          WHERE id = ?`,
         [
           input.admissionNo,
@@ -187,6 +198,7 @@ export function updateStudent(id: number, input: StudentInput): StudentDetail {
           input.email ?? null,
           input.address ?? null,
           input.batchId ?? null,
+          input.schoolId ?? null,
           input.admissionDate ?? null,
           input.status,
           input.notes ?? null,

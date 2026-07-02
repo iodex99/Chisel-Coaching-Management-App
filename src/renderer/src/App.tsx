@@ -12,9 +12,11 @@ import Students from './screens/Students'
 import StudentForm from './screens/StudentForm'
 import StudentDetail from './screens/StudentDetail'
 import Batches from './screens/Batches'
+import Schools from './screens/Schools'
 import Accounts from './screens/Accounts'
 import Fees from './screens/Fees'
 import Payments from './screens/Payments'
+import Cheques from './screens/Cheques'
 import DueMonitoring from './screens/DueMonitoring'
 import Expenses from './screens/Expenses'
 import Reports from './screens/Reports'
@@ -55,8 +57,10 @@ export default function App(): JSX.Element {
             <Route path="students/:id" element={<StudentDetail />} />
             <Route path="students/:id/edit" element={<StudentForm />} />
             <Route path="batches" element={<Batches />} />
+            <Route path="schools" element={<Schools />} />
             <Route path="fees" element={<Fees />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="cheques" element={<Cheques />} />
             <Route path="dues" element={<DueMonitoring />} />
             <Route path="expenses" element={<Expenses />} />
             <Route path="reports" element={<Reports />} />

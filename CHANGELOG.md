@@ -4,6 +4,27 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.19]
+
+### Added
+- **School Master** — a new section to manage the schools your students come
+  from. Students get a **School** field (dropdown), the Students list has a
+  **School filter**, and the students import template gains a dynamic **School**
+  dropdown column (auto-updates as you add/remove schools).
+- **Two guardians in the import template** — Guardian 1 and Guardian 2
+  (name/relation/phone each), so up to two guardians import per student.
+- **Post-dated cheques (PDCs)** — a new section to record cheques received now
+  for later deposit. You're reminded when the date arrives: a **“Cheques to
+  deposit”** list in Due Monitoring and a **dashboard card**. Mark them
+  deposited/bounced as you act on them.
+- **More reports:** Collection by account, **Account summary (money in / out /
+  balance)**, Collection by school, Students by school, Outstanding by batch,
+  Discounts given, and Monthly collection vs expense (net).
+
+### Changed
+- **Receipts:** for **cash** payments the *Mode* now shows “—”, and the *Received
+  in* (account) line has been removed from the printed/PDF receipt.
+
 ## [1.0.18]
 
 ### Fixed

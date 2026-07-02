@@ -8,12 +8,22 @@ import { DateField } from '../components/DateField'
 import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 import { fmtDate, fmtMoney, isoToDisplay } from '../lib/format'
 
-const REPORTS: { value: ReportType; label: string; group: 'Fees' | 'Expenses' }[] = [
-  { value: 'collection-by-student', label: 'Collection by student', group: 'Fees' },
-  { value: 'outstanding', label: 'Outstanding fees', group: 'Fees' },
-  { value: 'collection-by-date', label: 'Collection by date', group: 'Fees' },
-  { value: 'collection-by-mode', label: 'Collection by payment mode', group: 'Fees' },
-  { value: 'collection-by-batch', label: 'Collection summary (by batch)', group: 'Fees' },
+const GROUPS = ['Fees & collection', 'Accounts', 'Students', 'Expenses'] as const
+type Group = (typeof GROUPS)[number]
+
+const REPORTS: { value: ReportType; label: string; group: Group }[] = [
+  { value: 'collection-by-student', label: 'Collection by student', group: 'Fees & collection' },
+  { value: 'outstanding', label: 'Outstanding fees', group: 'Fees & collection' },
+  { value: 'outstanding-by-batch', label: 'Outstanding by batch', group: 'Fees & collection' },
+  { value: 'collection-by-date', label: 'Collection by date', group: 'Fees & collection' },
+  { value: 'collection-by-mode', label: 'Collection by payment mode', group: 'Fees & collection' },
+  { value: 'collection-by-batch', label: 'Collection summary (by batch)', group: 'Fees & collection' },
+  { value: 'collection-by-school', label: 'Collection by school', group: 'Fees & collection' },
+  { value: 'discounts-by-student', label: 'Discounts given', group: 'Fees & collection' },
+  { value: 'monthly-net', label: 'Monthly collection vs expense (net)', group: 'Fees & collection' },
+  { value: 'collection-by-account', label: 'Collection by account (credited)', group: 'Accounts' },
+  { value: 'account-summary', label: 'Account summary (in / out / balance)', group: 'Accounts' },
+  { value: 'students-by-school', label: 'Students by school', group: 'Students' },
   { value: 'expense-by-date', label: 'Expenses by date', group: 'Expenses' },
   { value: 'expense-by-category', label: 'Expenses by category', group: 'Expenses' },
   { value: 'expense-by-vendor', label: 'Expenses by vendor / payee', group: 'Expenses' },
@@ -92,7 +102,6 @@ export default function Reports(): JSX.Element {
     }
   }
 
-  const grouped = { Fees: REPORTS.filter((r) => r.group === 'Fees'), Expenses: REPORTS.filter((r) => r.group === 'Expenses') }
 
   return (
     <div className="p-8">
@@ -102,20 +111,15 @@ export default function Reports(): JSX.Element {
         <div className="min-w-[260px]">
           <label className="label">Report</label>
           <select className="input" value={type} onChange={(e) => setType(e.target.value as ReportType)}>
-            <optgroup label="Fees">
-              {grouped.Fees.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Expenses">
-              {grouped.Expenses.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </optgroup>
+            {GROUPS.map((g) => (
+              <optgroup key={g} label={g}>
+                {REPORTS.filter((r) => r.group === g).map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </div>
         <div className="w-40">

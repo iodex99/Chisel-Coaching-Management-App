@@ -79,6 +79,7 @@ export default function StudentDetail(): JSX.Element {
             <Row label="Gender" value={student.gender} />
             <Row label="Date of birth" value={student.dob ? fmtDate(student.dob) : null} />
             <Row label="Admission date" value={student.admissionDate ? fmtDate(student.admissionDate) : null} />
+            <Row label="School" value={student.schoolName} />
             <Row label="Address" value={student.address} />
             <Row label="Notes" value={student.notes} />
           </dl>

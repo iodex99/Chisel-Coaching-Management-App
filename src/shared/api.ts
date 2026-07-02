@@ -41,7 +41,14 @@ import type {
   BackupInfo,
   UpdateInfo,
   UpdateStatus,
-  ImportResult
+  ImportResult,
+  School,
+  SchoolSummary,
+  SchoolInput,
+  PostDatedCheque,
+  PdcInput,
+  PdcFilter,
+  PdcStatus
 } from './types'
 
 /**
@@ -182,5 +189,18 @@ export interface ChiselApi {
     seedSample(): Promise<{ added: boolean; message: string }>
     /** Remove all sample records (tagged "(Sample)"), leaving real data intact. */
     removeSample(): Promise<{ removed: boolean }>
+  }
+  schools: {
+    list(): Promise<SchoolSummary[]>
+    create(input: SchoolInput): Promise<School>
+    update(input: { id: number; input: SchoolInput }): Promise<School>
+    remove(input: { id: number }): Promise<void>
+  }
+  pdc: {
+    list(filter?: PdcFilter): Promise<PostDatedCheque[]>
+    create(input: PdcInput): Promise<PostDatedCheque>
+    setStatus(input: { id: number; status: PdcStatus }): Promise<void>
+    remove(input: { id: number }): Promise<void>
+    due(input: { days: number }): Promise<PostDatedCheque[]>
   }
 }

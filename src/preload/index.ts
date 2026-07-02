@@ -130,6 +130,19 @@ const api: ChiselApi = {
   demo: {
     seedSample: () => ipcRenderer.invoke('demo:seed'),
     removeSample: () => ipcRenderer.invoke('demo:clear')
+  },
+  schools: {
+    list: () => ipcRenderer.invoke('schools:list'),
+    create: (input) => ipcRenderer.invoke('schools:create', input),
+    update: (input) => ipcRenderer.invoke('schools:update', input),
+    remove: (input) => ipcRenderer.invoke('schools:remove', input)
+  },
+  pdc: {
+    list: (filter) => ipcRenderer.invoke('pdc:list', filter),
+    create: (input) => ipcRenderer.invoke('pdc:create', input),
+    setStatus: (input) => ipcRenderer.invoke('pdc:setStatus', input),
+    remove: (input) => ipcRenderer.invoke('pdc:remove', input),
+    due: (input) => ipcRenderer.invoke('pdc:due', input)
   }
 }
 

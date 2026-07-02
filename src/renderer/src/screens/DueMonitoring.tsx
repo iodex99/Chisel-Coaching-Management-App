@@ -1,19 +1,29 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Search, CheckCircle2 } from 'lucide-react'
 import type { DueItem } from '@shared/types'
 import { api } from '../lib/api'
+import { queryClient } from '../lib/queryClient'
 import { PageHeader } from '../components/PageHeader'
 import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
-import { fmtDate, fmtMoney } from '../lib/format'
+import { fmtDate, fmtMoney, todayIso } from '../lib/format'
 
 export default function DueMonitoring(): JSX.Element {
+  const nav = useNavigate()
   const [days, setDays] = useState(30)
   const [search, setSearch] = useState('')
   const [batchName, setBatchName] = useState('')
   const { data: overdue = [] } = useQuery({ queryKey: ['dues-overdue'], queryFn: () => api.dues.overdue() })
   const { data: upcoming = [] } = useQuery({ queryKey: ['dues-upcoming', days], queryFn: () => api.dues.upcoming({ days }) })
+  const { data: pdcDue = [] } = useQuery({ queryKey: ['pdc-due'], queryFn: () => api.pdc.due({ days: 14 }) })
+
+  async function markDeposited(id: number): Promise<void> {
+    await api.pdc.setStatus({ id, status: 'deposited' })
+    void queryClient.invalidateQueries({ queryKey: ['pdc-due'] })
+    void queryClient.invalidateQueries({ queryKey: ['pdc'] })
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  }
 
   const q = search.trim().toLowerCase()
   const matches = (r: DueItem): boolean =>
@@ -39,6 +49,51 @@ export default function DueMonitoring(): JSX.Element {
           ))}
         </select>
       </div>
+
+      {pdcDue.length > 0 && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-600">
+              Cheques to deposit ({pdcDue.length})
+            </h2>
+            <button className="text-sm text-brand-600 hover:underline" onClick={() => nav('/cheques')}>
+              Manage cheques →
+            </button>
+          </div>
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Deposit date</th>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">Cheque no</th>
+                  <th className="px-4 py-3">Bank</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pdcDue.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50">
+                    <td className={`px-4 py-3 ${c.depositDate <= todayIso() ? 'font-medium text-accent-600' : 'text-slate-600'}`}>
+                      {fmtDate(c.depositDate)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{c.studentName || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{c.chequeNo || '—'}</td>
+                    <td className="px-4 py-3 text-slate-500">{c.bank || '—'}</td>
+                    <td className="px-4 py-3 text-right font-medium">{fmtMoney(c.amount)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button className="inline-flex items-center gap-1 text-xs text-green-600 hover:underline" onClick={() => void markDeposited(c.id)}>
+                        <CheckCircle2 size={14} /> Deposited
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="mb-8">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-accent-600">

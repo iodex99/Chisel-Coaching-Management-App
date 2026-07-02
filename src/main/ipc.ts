@@ -20,6 +20,8 @@ import * as backup from './services/backup'
 import * as updater from './services/update'
 import * as importer from './services/import'
 import * as demo from './services/demo'
+import * as schools from './services/school'
+import * as pdc from './services/pdc'
 import {
   setupSchema,
   loginSchema,
@@ -54,7 +56,13 @@ import {
   vendorLimitInfoSchema,
   reportRequestSchema,
   backupNameSchema,
-  autoBackupSchema
+  autoBackupSchema,
+  schoolInputSchema,
+  schoolUpdateSchema,
+  pdcInputSchema,
+  pdcStatusSchema,
+  pdcFilterSchema,
+  pdcDueSchema
 } from '@shared/schemas'
 
 type Handler<I> = (input: I) => unknown
@@ -163,6 +171,12 @@ export function registerIpc(): void {
   handleAuthed('batches:update', batchUpdateSchema, (i) => batches.updateBatch(i.id, i.input))
   handleAuthed('batches:remove', idSchema, (i) => batches.deleteBatch(i.id))
 
+  // Schools (school master)
+  handleAuthed('schools:list', null, () => schools.listSchools())
+  handleAuthed('schools:create', schoolInputSchema, (i) => schools.createSchool(i))
+  handleAuthed('schools:update', schoolUpdateSchema, (i) => schools.updateSchool(i.id, i.input))
+  handleAuthed('schools:remove', idSchema, (i) => schools.deleteSchool(i.id))
+
   // Students
   handleAuthed('students:list', studentFilterSchema, (i) => students.listStudents(i))
   handleAuthed('students:get', idSchema, (i) => students.getStudent(i.id))
@@ -195,6 +209,13 @@ export function registerIpc(): void {
   handleAuthed('dashboard:get', null, () => dashboard.getDashboard())
   handleAuthed('dues:overdue', null, () => dashboard.listOverdue())
   handleAuthed('dues:upcoming', upcomingSchema, (i) => dashboard.listUpcoming(i.days))
+
+  // Post-dated cheques
+  handleAuthed('pdc:list', pdcFilterSchema, (i) => pdc.listPdcs(i))
+  handleAuthed('pdc:create', pdcInputSchema, (i) => pdc.createPdc(i))
+  handleAuthed('pdc:setStatus', pdcStatusSchema, (i) => pdc.setPdcStatus(i.id, i.status))
+  handleAuthed('pdc:remove', idSchema, (i) => pdc.deletePdc(i.id))
+  handleAuthed('pdc:due', pdcDueSchema, (i) => pdc.listPdcDue(i.days))
 
   // Expense categories
   handleAuthed('expenseCategories:list', null, () => expenses.listCategories())

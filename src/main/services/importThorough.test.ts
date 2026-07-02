@@ -14,6 +14,7 @@ vi.mock('electron-log/main', () => ({
 
 import * as auth from './auth'
 import * as batch from './batch'
+import * as school from './school'
 import * as students from './student'
 import * as fees from './fee'
 import * as importer from './import'
@@ -134,6 +135,31 @@ describe('students import — edge cases', () => {
     const res = await importer.importStudents(await stuSheet([['W-5', '01-04-2026', 'No', 'Guard', 'male', '', '', '', '', '', 'Father', '999']]))
     expect(res.imported).toBe(1)
     expect(students.getStudent(students.listStudents({ search: 'W-5' })[0].id)?.guardians).toHaveLength(0)
+  })
+
+  const fullHeader = [
+    'Admission No *', 'Admission Date (DD-MM-YYYY) *', 'First Name *', 'Last Name *', 'Gender *', 'Phone', 'Email',
+    'Batch', 'School', 'Status', 'Guardian 1 Name', 'Guardian 1 Relation', 'Guardian 1 Phone',
+    'Guardian 2 Name', 'Guardian 2 Relation', 'Guardian 2 Phone'
+  ]
+  it('resolves the school column and imports two guardians', async () => {
+    school.createSchool({ name: 'DPS', isActive: true })
+    const res = await importer.importStudents(
+      await sheet('Students', fullHeader, [
+        ['SKUL-1', '01-04-2026', 'A', 'B', 'male', '', '', '', 'dps', 'active', 'Ravi', 'Father', '9', 'Sita', 'Mother', '8']
+      ])
+    )
+    expect(res.imported).toBe(1)
+    const d = students.getStudent(students.listStudents({ search: 'SKUL-1' })[0].id)!
+    expect(d.schoolName).toBe('DPS') // case-insensitive match
+    expect(d.guardians.map((g) => g.name)).toEqual(['Ravi', 'Sita'])
+  })
+  it('rejects an unknown school', async () => {
+    const res = await importer.importStudents(
+      await sheet('Students', fullHeader, [['SKUL-2', '01-04-2026', 'A', 'B', 'male', '', '', '', 'NopeSchool', 'active']])
+    )
+    expect(res.imported).toBe(0)
+    expect(res.errors[0].message).toMatch(/Unknown school/)
   })
 
   it('normalises a capitalised gender and rejects an invalid one', async () => {

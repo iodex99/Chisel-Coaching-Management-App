@@ -2,6 +2,8 @@ import { getDb } from '../db/database'
 import { financialYear } from './fy'
 import { createAccount } from './account'
 import { createBatch } from './batch'
+import { createSchool } from './school'
+import { createPdc } from './pdc'
 import { createStudent } from './student'
 import { saveFeePlan } from './fee'
 import { recordPayment, cancelPayment } from './payment'
@@ -62,13 +64,17 @@ export function clearSampleData(): { removed: boolean } {
     ? db.all<{ id: number }>(`SELECT id FROM students WHERE batch_id IN (${inClause(batchIds)})`, batchIds).map((r) => r.id)
     : []
 
+  const schoolIds = db.all<{ id: number }>("SELECT id FROM schools WHERE name LIKE '%(Sample)%'").map((r) => r.id)
+
   db.transaction((d) => {
     if (stuIds.length) {
-      // Delete payments first (payments.student_id has no cascade), then students
-      // (cascades fee_plans -> installments, guardians; payments cascade allocations).
+      // Delete payments + cheques first (their student_id has no cascade / SET NULL),
+      // then students (cascades fee_plans -> installments, guardians; payments cascade allocations).
       d.run(`DELETE FROM payments WHERE student_id IN (${inClause(stuIds)})`, stuIds)
+      d.run(`DELETE FROM postdated_cheques WHERE student_id IN (${inClause(stuIds)})`, stuIds)
       d.run(`DELETE FROM students WHERE id IN (${inClause(stuIds)})`, stuIds)
     }
+    if (schoolIds.length) d.run(`DELETE FROM schools WHERE id IN (${inClause(schoolIds)})`, schoolIds)
     const expConds: string[] = []
     const expParams: number[] = []
     if (acctIds.length) {
@@ -123,8 +129,16 @@ export async function seedDemoData(): Promise<SeedResult> {
   const crash = createBatch({ name: 'NEET Crash (Sample)', courseName: 'NEET Crash Course', academicYear: '2026-27', defaultFee: R(40000), status: 'active' })
   createBatch({ name: 'Foundation X 2024 (Sample)', courseName: 'Foundation', academicYear: '2024-25', defaultFee: R(55000), status: 'inactive' })
 
+  // --- Schools (school master) ---
+  const schools = [
+    createSchool({ name: 'Delhi Public School (Sample)', area: 'Sector 12', contact: '9811100011', isActive: true }).id,
+    createSchool({ name: "St. Xavier's (Sample)", area: 'Civil Lines', contact: '9811100012', isActive: true }).id,
+    createSchool({ name: 'Kendriya Vidyalaya (Sample)', area: 'Cantt', contact: '9811100013', isActive: true }).id
+  ]
+
   let admN = 1
   const adm = (): string => `S2026-${String(admN++).padStart(3, '0')}`
+  let schoolCursor = 0
 
   type Gender = 'male' | 'female' | 'other'
   function mkStudent(
@@ -137,6 +151,7 @@ export async function seedDemoData(): Promise<SeedResult> {
     guardians: { name: string; relation: string; phone: string }[],
     admMonthsBack: number
   ): number {
+    const schoolId = schools[schoolCursor++ % schools.length] // spread students across schools
     return createStudent({
       admissionNo: adm(),
       firstName: first,
@@ -145,6 +160,7 @@ export async function seedDemoData(): Promise<SeedResult> {
       phone,
       email: `${first.toLowerCase()}.${last.toLowerCase()}@example.com`,
       batchId: batch.id,
+      schoolId,
       admissionDate: monthDay(admMonthsBack, 3),
       status,
       guardians
@@ -276,6 +292,11 @@ export async function seedDemoData(): Promise<SeedResult> {
   exp(dayOffset(-3), cStat, R(3200), 'cash', cash, vPrint, 'Test booklets')
   exp(dayOffset(-1), cMaint, R(2500), 'cash', cash, vClean, 'AC servicing')
   exp(monthDay(2, 20), cStat, R(4500), 'cash', cash, vPrint, 'Whiteboard markers & paper')
+
+  // --- Post-dated cheques (one due now, one upcoming, one further out) ---
+  createPdc({ studentId: s3, amount: R(20000), chequeNo: '100234', bank: 'HDFC Bank', depositDate: dayOffset(-2), notes: 'Term 2 PDC' })
+  createPdc({ studentId: s9, amount: R(15000), chequeNo: '556120', bank: 'SBI', depositDate: dayOffset(7) })
+  createPdc({ studentId: s5, amount: R(10000), chequeNo: '778001', bank: 'ICICI', depositDate: dayOffset(45) })
 
   const counts = getDb().get<{ s: number; p: number; e: number }>(
     'SELECT (SELECT COUNT(*) FROM students) AS s, (SELECT COUNT(*) FROM payments WHERE is_cancelled = 0) AS p, (SELECT COUNT(*) FROM expenses) AS e'

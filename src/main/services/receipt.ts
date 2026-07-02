@@ -36,6 +36,11 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string)
 }
 
+/** Exported for testing the receipt layout without spawning a BrowserWindow. */
+export function renderReceiptHtml(data: ReceiptData): string {
+  return renderHtml(data)
+}
+
 function renderHtml(data: ReceiptData): string {
   const { institute, payment, amountInWords } = data
   const logo = logoDataUri()
@@ -89,8 +94,7 @@ function renderHtml(data: ReceiptData): string {
       <div><span>Date</span>${fmtDate(payment.paymentDate)}</div>
       <div><span>Student</span>${escapeHtml(payment.studentName)}</div>
       <div><span>Admission No</span>${escapeHtml(payment.admissionNo)}</div>
-      <div><span>Mode</span>${MODE_LABEL[payment.mode]}${payment.referenceNo ? ` (${escapeHtml(payment.referenceNo)})` : ''}</div>
-      <div><span>Received in</span>${escapeHtml(payment.accountName ?? '—')}</div>
+      <div><span>Mode</span>${payment.mode === 'cash' ? '—' : `${MODE_LABEL[payment.mode]}${payment.referenceNo ? ` (${escapeHtml(payment.referenceNo)})` : ''}`}</div>
     </div>
     <table>
       <thead><tr><th>Particulars</th><th class="r">Amount</th></tr></thead>

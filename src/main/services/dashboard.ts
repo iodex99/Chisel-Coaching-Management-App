@@ -1,5 +1,6 @@
 import { getDb } from '../db/database'
 import { listFeeSummaries } from './fee'
+import { pdcDueSummary } from './pdc'
 import { todayISO } from './fy'
 import type { DueItem, DashboardData, PaymentListItem } from '@shared/types'
 
@@ -136,6 +137,8 @@ export function getDashboard(): DashboardData {
     overdueStudents,
     overdueAmount,
     upcomingCount: listUpcoming(14).length,
+    pdcDueCount: pdcDueSummary().count,
+    pdcDueAmount: pdcDueSummary().amount,
     collectionTrend: collectionTrend(),
     recentPayments: recent.map((r) => ({
       id: r.id,
