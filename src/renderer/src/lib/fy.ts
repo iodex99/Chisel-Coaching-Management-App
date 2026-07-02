@@ -12,10 +12,13 @@ export function currentFy(): string {
   return label(startYear())
 }
 
-/** A sensible range of FY options around the current year for dropdowns. */
+/** A wide range of FY options around the current year for dropdowns (so users
+ *  pick a canonical "2026-27" value instead of typing an ambiguous one).
+ *  Ordered newest-first. Covers several past years (legacy batches) and future
+ *  years (planning ahead). */
 export function fyOptions(): string[] {
   const s = startYear()
   const opts: string[] = []
-  for (let y = s - 2; y <= s + 4; y++) opts.push(label(y))
+  for (let y = s + 8; y >= s - 6; y--) opts.push(label(y))
   return opts
 }

@@ -5,9 +5,10 @@ import type { Account, AccountInput, AccountType } from '@shared/types'
 import { api, errMessage } from '../lib/api'
 import { queryClient } from '../lib/queryClient'
 import { fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
-import { currentFy, fyOptions } from '../lib/fy'
+import { currentFy } from '../lib/fy'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
+import { FySelect } from '../components/FySelect'
 import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 
 /** The per-vendor limit that applies to an account this financial year. */
@@ -202,8 +203,6 @@ function AccountForm({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const fyChoices = fyOptions()
-
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     setBusy(true)
@@ -277,18 +276,11 @@ function AccountForm({
         <div className="space-y-2">
           {fyLimits.map((row, i) => (
             <div key={i} className="flex items-center gap-2">
-              <select
+              <FySelect
                 className="input w-32"
                 value={row.fy}
-                onChange={(e) => setFyLimits((rows) => rows.map((r, idx) => (idx === i ? { ...r, fy: e.target.value } : r)))}
-              >
-                {fyChoices.includes(row.fy) ? null : <option value={row.fy}>{row.fy}</option>}
-                {fyChoices.map((fy) => (
-                  <option key={fy} value={fy}>
-                    {fy}
-                  </option>
-                ))}
-              </select>
+                onChange={(fy) => setFyLimits((rows) => rows.map((r, idx) => (idx === i ? { ...r, fy } : r)))}
+              />
               <input
                 className="input flex-1"
                 type="number"

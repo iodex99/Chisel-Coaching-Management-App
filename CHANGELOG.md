@@ -4,6 +4,19 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.22]
+
+### Changed
+- **Financial year is now always picked from a dropdown — never typed.** Every
+  place a financial year is entered (the **Batches** "Academic year" field and
+  the **Accounts** "Limits by financial year" rows) now offers a fixed list of
+  canonical `YYYY-YY` values (e.g. `2026-27`), so there is no ambiguity between
+  entries like `26-27` and `2026-27`.
+- The list of years was widened to cover several past years (for older batches)
+  and future years (for planning ahead), ordered newest-first.
+- A saved value that predates this list is still shown and selectable when
+  editing, so no existing data is lost.
+
 ## [1.0.21]
 
 ### Added

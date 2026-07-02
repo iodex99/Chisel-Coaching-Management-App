@@ -8,6 +8,7 @@ import { fmtMoney, rupeesToPaise, paiseToRupees } from '../lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/Modal'
 import { DateField } from '../components/DateField'
+import { FySelect } from '../components/FySelect'
 import { SortableTh, toggleSort, sortRows, type Sort } from '../components/SortableTh'
 
 export default function Batches(): JSX.Element {
@@ -207,7 +208,7 @@ function BatchForm({
         </div>
         <div>
           <label className="label">Academic year</label>
-          <input className="input" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2026-27" />
+          <FySelect value={academicYear} onChange={setAcademicYear} includeBlank blankLabel="— Not set —" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
