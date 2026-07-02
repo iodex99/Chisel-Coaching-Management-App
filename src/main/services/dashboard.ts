@@ -123,6 +123,7 @@ export function getDashboard(): DashboardData {
      WHERE p.is_cancelled = 0 ORDER BY p.created_at DESC LIMIT 6`
   )
 
+  const pdcDue = pdcDueSummary()
   const monthCollection = collectionBetween(monthStart, t)
   const monthExpenses =
     getDb().get<{ t: number }>('SELECT COALESCE(SUM(amount), 0) AS t FROM expenses WHERE expense_date >= ?', [monthStart])
@@ -137,8 +138,8 @@ export function getDashboard(): DashboardData {
     overdueStudents,
     overdueAmount,
     upcomingCount: listUpcoming(14).length,
-    pdcDueCount: pdcDueSummary().count,
-    pdcDueAmount: pdcDueSummary().amount,
+    pdcDueCount: pdcDue.count,
+    pdcDueAmount: pdcDue.amount,
     collectionTrend: collectionTrend(),
     recentPayments: recent.map((r) => ({
       id: r.id,
