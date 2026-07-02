@@ -9,6 +9,8 @@ describe('financial-year options', () => {
     expect(new Set(opts).size).toBe(opts.length) // no duplicates
     expect(opts.length).toBeGreaterThanOrEqual(14) // a wide range (past + future)
     expect(Number(opts[0].slice(0, 4))).toBeGreaterThan(Number(opts[opts.length - 1].slice(0, 4)))
+    expect(Number(opts[0].slice(0, 4))).toBeGreaterThanOrEqual(2050) // extends up to FY 2050-51
+    expect(opts).toContain('2050-51')
   })
 
   it('current FY matches the YYYY-YY shape', () => {

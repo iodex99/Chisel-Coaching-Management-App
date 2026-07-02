@@ -4,6 +4,14 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.23]
+
+### Changed
+- **Financial-year dropdowns now go all the way up to `2050-51`**, so far-ahead
+  batches and vendor limits can be planned. The list still starts a few years in
+  the past (for legacy data) and always includes the current year, ordered
+  newest-first.
+
 ## [1.0.22]
 
 ### Changed
