@@ -38,6 +38,9 @@
 - Applied versions are tracked in a `schema_migrations(version, applied_at)`
   table. Only un-applied migrations run, so updates never lose or corrupt data.
 - Migrations are **append-only**: never edit a shipped migration; add a new one.
+- Before an update migrates an existing database, the untouched file (plus
+  `keyfile.json`) is copied to `backups/pre-update-<timestamp>/`, which shows
+  under Settings → Backups and can be restored.
 
 ## Schema (planned)
 
@@ -56,7 +59,7 @@
 | `accounts` | cash / bank / UPI accounts (money in & out); incl. per-vendor FY spend limit |
 | `fee_plans` | per-student fee structure |
 | `fee_installments` | installment schedule with due dates |
-| `payments` | fee payments received (with unique receipt no) |
+| `payments` | fee payments received (with unique receipt no); also keeps the student's batch name, academic year, course and school as of the payment, for the receipt |
 | `payment_allocations` | split a payment across installments |
 | `expense_categories` | expense category master |
 | `vendors` | payee / vendor master |

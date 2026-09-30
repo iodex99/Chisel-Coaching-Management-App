@@ -55,9 +55,18 @@ export function recordPayment(input: PaymentInput, userId = 1): PaymentRecord {
   const ts = now()
   const id = getDb().transaction((d) => {
     const receiptNo = nextReceiptNo(d, input.paymentDate)
+    // Capture the student's batch / course / school as of this payment, so a
+    // later reprint still shows them after the student moves on.
+    const details = d.get<{ batch_name: string | null; academic_year: string | null; course_name: string | null; school_name: string | null }>(
+      `SELECT b.name AS batch_name, b.academic_year, b.course_name, sc.name AS school_name
+       FROM students s LEFT JOIN batches b ON b.id = s.batch_id LEFT JOIN schools sc ON sc.id = s.school_id
+       WHERE s.id = ?`,
+      [input.studentId]
+    )
     const paymentId = d.run(
-      `INSERT INTO payments (receipt_no, student_id, payment_date, amount, mode, account_id, reference_no, remarks, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO payments (receipt_no, student_id, payment_date, amount, mode, account_id, reference_no, remarks,
+                             batch_name, academic_year, course_name, school_name, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         receiptNo,
         input.studentId,
@@ -67,6 +76,10 @@ export function recordPayment(input: PaymentInput, userId = 1): PaymentRecord {
         input.accountId ?? null,
         input.referenceNo ?? null,
         input.remarks ?? null,
+        details?.batch_name ?? null,
+        details?.academic_year ?? null,
+        details?.course_name ?? null,
+        details?.school_name ?? null,
         userId,
         ts
       ]
@@ -104,6 +117,10 @@ export function getPayment(id: number): PaymentRecord | undefined {
     account_name: string | null
     reference_no: string | null
     remarks: string | null
+    batch_name: string | null
+    academic_year: string | null
+    course_name: string | null
+    school_name: string | null
     is_cancelled: number
     cancel_reason: string | null
     created_at: string
@@ -134,6 +151,10 @@ export function getPayment(id: number): PaymentRecord | undefined {
     accountName: r.account_name,
     referenceNo: r.reference_no,
     remarks: r.remarks,
+    batchName: r.batch_name,
+    academicYear: r.academic_year,
+    courseName: r.course_name,
+    schoolName: r.school_name,
     isCancelled: !!r.is_cancelled,
     cancelReason: r.cancel_reason,
     createdAt: r.created_at,

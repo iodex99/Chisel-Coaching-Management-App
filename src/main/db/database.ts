@@ -6,7 +6,7 @@ import { app } from 'electron'
 import log from 'electron-log/main'
 import { dataPath } from '../paths'
 import { encrypt, decrypt } from './crypto'
-import { runMigrations } from './migrations/runner'
+import { runMigrations, hasPendingMigrations } from './migrations/runner'
 
 let SQL: SqlJsStatic | null = null
 
@@ -206,9 +206,26 @@ export async function openExistingDatabase(key: Buffer): Promise<Db> {
   const blob = readFileSync(dbFilePath())
   const bytes = decrypt(blob, key) // throws on wrong key / tampering
   const db = new Db(new sqljs.Database(bytes), key)
+  if (hasPendingMigrations(db)) backupBeforeMigration()
   runMigrations(db) // apply any migrations added by an update
   current = db
   return db
+}
+
+/** Snapshot the untouched file + key file as a regular backup folder before an
+ *  update changes the schema, so it is listed under Backups and restorable.
+ *  Best-effort: migrations are transactional, so a failed copy never blocks. */
+function backupBeforeMigration(): void {
+  try {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const dir = dataPath('backups', `pre-update-${stamp}`)
+    mkdirSync(dir, { recursive: true })
+    copyFileSync(dbFilePath(), join(dir, 'chisel.db'))
+    const kf = dataPath('keyfile.json')
+    if (existsSync(kf)) copyFileSync(kf, join(dir, 'keyfile.json'))
+  } catch (e) {
+    log.warn('Pre-update backup failed:', e)
+  }
 }
 
 export function closeDatabase(): void {

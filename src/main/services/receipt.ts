@@ -36,6 +36,17 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string)
 }
 
+/** Escaped value, or a dash when the detail isn't set. */
+function orDash(s: string | null): string {
+  return s?.trim() ? escapeHtml(s.trim()) : '—'
+}
+
+/** "Batch name (academic year)", brackets only when the year is set. */
+function batchLabel(name: string | null, year: string | null): string {
+  if (!name?.trim()) return '—'
+  return escapeHtml(name.trim()) + (year?.trim() ? ` (${escapeHtml(year.trim())})` : '')
+}
+
 /** Exported for testing the receipt layout without spawning a BrowserWindow. */
 export function renderReceiptHtml(data: ReceiptData): string {
   return renderHtml(data)
@@ -65,7 +76,8 @@ function renderHtml(data: ReceiptData): string {
   .head .addr { font-size: 11px; opacity: .9; }
   .title { text-align:center; font-weight:700; letter-spacing:2px; color:#1e1b8c; padding:10px; border-bottom:1px solid #e5e7eb; }
   .meta { display:grid; grid-template-columns: 1fr 1fr; gap:6px 24px; padding:16px 20px; }
-  .meta div span { color:#6b7280; display:inline-block; min-width:110px; }
+  .meta div { display:flex; }
+  .meta div span { color:#6b7280; flex:0 0 110px; }
   table { width:100%; border-collapse: collapse; }
   th, td { padding:8px 20px; text-align:left; }
   thead th { background:#f3f4f6; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#6b7280; }
@@ -94,6 +106,9 @@ function renderHtml(data: ReceiptData): string {
       <div><span>Date</span>${fmtDate(payment.paymentDate)}</div>
       <div><span>Student</span>${escapeHtml(payment.studentName)}</div>
       <div><span>Admission No</span>${escapeHtml(payment.admissionNo)}</div>
+      <div><span>Batch</span>${batchLabel(payment.batchName, payment.academicYear)}</div>
+      <div><span>Course</span>${orDash(payment.courseName)}</div>
+      <div><span>School</span>${orDash(payment.schoolName)}</div>
       <div><span>Mode</span>${payment.mode === 'cash' ? '—' : `${MODE_LABEL[payment.mode]}${payment.referenceNo ? ` (${escapeHtml(payment.referenceNo)})` : ''}`}</div>
     </div>
     <table>

@@ -1,7 +1,7 @@
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { authenticator } from 'otplib'
 import ExcelJS from 'exceljs'
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'fs'
+import { mkdtempSync, rmSync, existsSync, writeFileSync, readdirSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -102,6 +102,16 @@ test('first-run setup, 2FA, a UI write, then logout + login with 2FA', async () 
   // --- Reports: the default consolidated "Financial summary" renders ---
   await page.getByRole('link', { name: 'Reports' }).click()
   await expect(page.getByText('Net (collection − expense)')).toBeVisible()
+
+  // --- Receipt PDF through the real pipeline (IPC -> render -> printToPDF) ---
+  await app.evaluate(({ shell }) => {
+    shell.openPath = async () => '' // don't launch a PDF viewer during the test
+  })
+  await page.getByRole('link', { name: 'Payments' }).click()
+  await page.getByTitle('Save & open PDF').first().click()
+  await expect
+    .poll(() => readdirSync(join(dataDir, 'receipts')).filter((f) => f.endsWith('.pdf')).length)
+    .toBeGreaterThan(0)
 
   // --- Students: a sortable header round-trips to the backend on the seeded list ---
   await page.getByRole('link', { name: 'Students' }).click()

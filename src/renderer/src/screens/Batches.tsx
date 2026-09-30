@@ -204,7 +204,7 @@ function BatchForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Course</label>
-          <input className="input" value={courseName} onChange={(e) => setCourseName(e.target.value)} />
+          <input className="input" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. IX ICSE, X CBSE" />
         </div>
         <div>
           <label className="label">Academic year</label>

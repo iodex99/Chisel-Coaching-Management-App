@@ -15,6 +15,7 @@ import { m0006_account_limits } from './0006_account_limits'
 import { m0007_account_fy_limits } from './0007_account_fy_limits'
 import { m0008_schools } from './0008_schools'
 import { m0009_pdc } from './0009_pdc'
+import { m0010_receipt_details } from './0010_receipt_details'
 
 /** Ordered list of all migrations. Append new ones; never edit a shipped one. */
 export const MIGRATIONS: Migration[] = [
@@ -26,8 +27,21 @@ export const MIGRATIONS: Migration[] = [
   m0006_account_limits,
   m0007_account_fy_limits,
   m0008_schools,
-  m0009_pdc
+  m0009_pdc,
+  m0010_receipt_details
 ]
+
+function appliedVersion(db: Db): number {
+  return db.get<{ v: number | null }>('SELECT MAX(version) AS v FROM schema_migrations')?.v ?? 0
+}
+
+/** True when an existing database needs migrations from an update. */
+export function hasPendingMigrations(db: Db): boolean {
+  const hasTable = db.get("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'")
+  if (!hasTable) return true
+  const applied = appliedVersion(db)
+  return MIGRATIONS.some((m) => m.version > applied)
+}
 
 /**
  * Apply any migrations whose version is newer than the highest applied. Each
@@ -42,7 +56,7 @@ export function runMigrations(db: Db): void {
     )
   `)
 
-  const applied = db.get<{ v: number | null }>('SELECT MAX(version) AS v FROM schema_migrations')?.v ?? 0
+  const applied = appliedVersion(db)
   const pending = MIGRATIONS.filter((m) => m.version > applied).sort((a, b) => a.version - b.version)
   if (pending.length === 0) return
 

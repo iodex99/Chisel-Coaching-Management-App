@@ -4,6 +4,35 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.24]
+
+### Added
+- **Fee receipts now show Batch, Course and School.** The receipt details grid
+  gains three fields, all taken from the masters:
+  - **Batch** — the batch name with its academic year in brackets, e.g.
+    `IX-A Morning (2026-27)` (no brackets when the batch has no academic year).
+  - **Course** — the batch's course, e.g. `IX ICSE`, `X CBSE`.
+  - **School** — from the School Master.
+  A detail that isn't set shows `—`. Long school names wrap within their column.
+- These details are **saved with each payment**, so a reprinted receipt keeps
+  showing the batch / academic year / school as they were when the fee was paid —
+  even after the student is promoted, or a batch or school is renamed or deleted.
+- The batch **Course** field now hints the expected format (`e.g. IX ICSE, X CBSE`).
+
+### Upgrade & data safety
+- Database migration **v10** only **adds** four new columns to payments; no
+  existing value is changed. Receipts recorded before this update are filled once
+  from each student's current batch and school.
+- Before any update changes the database, the app now saves the untouched
+  database as a **`pre-update-…` backup** (listed under Settings → Backups, and
+  restorable from there).
+
+### Tests
+- Upgrade tests build a real v1.0.23 database (and a full sample dataset),
+  sign in with the new version, and verify every existing row of every table is
+  unchanged, the pre-update backup holds the original, and receipt numbering
+  continues. The E2E flow now also exports a receipt PDF through the UI.
+
 ## [1.0.23]
 
 ### Changed

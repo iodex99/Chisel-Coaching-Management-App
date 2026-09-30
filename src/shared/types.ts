@@ -357,6 +357,11 @@ export interface PaymentRecord {
   accountName: string | null
   referenceNo: string | null
   remarks: string | null
+  /** Student's batch / course / school as of this payment (shown on the receipt). */
+  batchName: string | null
+  academicYear: string | null
+  courseName: string | null
+  schoolName: string | null
   isCancelled: boolean
   cancelReason: string | null
   createdAt: string
