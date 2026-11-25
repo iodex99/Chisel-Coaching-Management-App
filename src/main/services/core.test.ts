@@ -14,7 +14,7 @@ vi.mock('electron-log/main', () => ({
   default: { info: () => undefined, warn: () => undefined, error: () => undefined }
 }))
 
-import * as auth from './auth'
+import { setupTestAuth } from './testAuth'
 import * as accounts from './account'
 import * as batches from './batch'
 import * as students from './student'
@@ -26,7 +26,7 @@ beforeAll(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'chisel-core-'))
   process.env.CHISEL_DATA_DIR = dataDir
   ensureDataDirs()
-  await auth.setup({ username: 'admin', password: 'password123', instituteName: 'Test' })
+  await setupTestAuth('Test')
 })
 
 afterAll(async () => {

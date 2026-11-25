@@ -1,8 +1,5 @@
 import { z } from 'zod'
 
-/** Minimum master-password length. Surfaced in the UI too. */
-export const MIN_PASSWORD_LENGTH = 8
-
 // Dates are stored as ISO yyyy-mm-dd (the renderer's DateField always emits this
 // or an empty string). Validate the format so a malformed date can never reach
 // the date math (financial-year, ranges) and produce NaN.
@@ -14,27 +11,29 @@ const isoDateOptional = z
   .refine((v) => v === '' || ISO_DATE.test(v), 'Enter a valid date')
   .optional()
 
+const CODE_REQUIRED = 'Enter the 6-digit code from your authenticator app'
+
+/** A 6-digit authenticator code or a recovery code (XXXXX-XXXXX). */
+const authCode = z.string().trim().min(6, CODE_REQUIRED).max(20)
+
 export const setupSchema = z.object({
-  username: z.string().trim().min(3, 'Username must be at least 3 characters').max(40),
-  password: z.string().min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`).max(200),
-  instituteName: z.string().trim().max(120).optional()
+  instituteName: z.string().trim().max(120).optional(),
+  secret: z.string().min(8).max(128),
+  label: z.string().trim().max(40).optional(),
+  code: z.string().trim().min(6, CODE_REQUIRED).max(10)
 })
 
 export const loginSchema = z.object({
-  username: z.string().trim().max(40).optional(),
-  password: z.string().min(1, 'Password is required').max(200)
+  code: authCode
 })
 
-export const verifyPasswordSchema = z.object({
-  password: z.string().min(1, 'Password is required').max(200)
+export const legacyUnlockSchema = z.object({
+  password: z.string().min(1, 'Enter the master password this data was created with').max(200),
+  code: z.string().trim().max(20).optional()
 })
 
-export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z
-    .string()
-    .min(MIN_PASSWORD_LENGTH, `New password must be at least ${MIN_PASSWORD_LENGTH} characters`)
-    .max(200)
+export const verifyCodeSchema = z.object({
+  code: authCode
 })
 
 // --- Two-factor authentication ---
@@ -47,11 +46,6 @@ export const confirmEnrollSchema = z.object({
   secret: z.string().min(8).max(128),
   label: z.string().trim().max(40).optional().default('Authenticator'),
   code: z.string().trim().min(6).max(10)
-})
-
-export const verifyTwoFactorSchema = z.object({
-  code: z.string().trim().min(6).max(20),
-  trustDevice: z.boolean().optional()
 })
 
 export const idSchema = z.object({

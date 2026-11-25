@@ -12,7 +12,7 @@ vi.mock('electron-log/main', () => ({
   default: { info: () => undefined, warn: () => undefined, error: () => undefined }
 }))
 
-import * as auth from './auth'
+import { setupTestAuth } from './testAuth'
 import * as batch from './batch'
 import * as school from './school'
 import * as students from './student'
@@ -73,7 +73,7 @@ beforeAll(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'chisel-importx-'))
   process.env.CHISEL_DATA_DIR = dataDir
   ensureDataDirs()
-  await auth.setup({ username: 'admin', password: 'password123' })
+  await setupTestAuth()
   batch.createBatch({ name: 'NEET-A', courseName: 'NEET', defaultFee: 12000000, status: 'active' }) // ₹1,20,000
   batch.createBatch({ name: 'JEE-B', courseName: 'JEE', defaultFee: 15000000, status: 'active' })
 })

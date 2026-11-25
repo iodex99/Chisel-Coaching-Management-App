@@ -9,21 +9,22 @@
   (application level). The in-memory SQLite image is exported, encrypted and
   written atomically on every committed transaction (`src/main/db/database.ts`).
   This is a clean fit for the portable model — the entire DB is one encrypted
-  file that is useless without the password, and the GCM auth tag doubles as the
-  password verifier and tamper check.
+  file, and the GCM auth tag doubles as a wrong-key and tamper check.
   > Rationale: the originally-planned SQLCipher (`better-sqlite3-multiple-ciphers`)
   > needs a C++ toolchain that is not available here and complicates CI; the
   > AES-256-GCM + scrypt approach delivers the same at-rest security guarantee.
 - **Location:** `data/chisel.db` inside the portable data folder (see
   [DEPLOYMENT.md](DEPLOYMENT.md)).
-- **Key:** derived from the admin's master password via `scrypt`
-  (N=32768, r=8, p=1). The key is never written to disk. See
-  [SECURITY.md](SECURITY.md).
+- **Key:** a random 256-bit key generated at setup and stored in
+  `data/keyfile.json` (version 2). Data from v1.0.24 and earlier used a key
+  derived from the master password (`scrypt`, N=32768, r=8, p=1); it is unlocked
+  once with that password and its keyfile switched to version 2 with the same
+  key. See [SECURITY.md](SECURITY.md).
 - **Performance at scale:** writes persist **asynchronously and coalesced** —
   a transaction commits in memory and returns immediately, while the encrypt +
   whole-file write happens off the hot path (and bursts collapse into one
   write). So recording a payment never blocks the UI even as the database grows.
-  Synchronous flushes happen at safe points (open, change-password/rekey, close,
+  Synchronous flushes happen at safe points (open, setup, close,
   backup, and on app quit) so an acknowledged change is never lost on a graceful
   exit. Reads always see the latest state (it is in memory).
 - **Large lists** (students, payments, expenses) are **paginated** at the query
@@ -52,7 +53,7 @@
 | `app_user` | the single admin account + lockout state |
 | `two_factor` | up to 3 enrolled TOTP secrets |
 | `recovery_codes` | hashed one-time recovery codes |
-| `trusted_devices` | up to 3 machine-bound trusted devices |
+| `trusted_devices` | unused since v1.0.25 (sign-in always needs a code); kept so old data is untouched |
 | `batches` | course / batch definitions |
 | `students` | student master + admission records |
 | `guardians` | parent / guardian details per student |

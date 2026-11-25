@@ -2,12 +2,10 @@ import type {
   AuthState,
   SetupInput,
   LoginInput,
-  ChangePasswordInput,
+  LegacyUnlockInput,
   LoginResult,
-  User,
   EnrollStart,
   ConfirmEnrollInput,
-  VerifyTwoFactorInput,
   TwoFactorAuthenticator,
   TwoFactorStatus,
   Account,
@@ -72,24 +70,27 @@ export interface ChiselApi {
   }
   auth: {
     getState(): Promise<AuthState>
+    /** First run: a fresh authenticator secret + QR to scan (no account yet). */
+    beginSetup(): Promise<EnrollStart>
+    /** First run: verify the code from the scanned app and create the data. */
     setup(input: SetupInput): Promise<LoginResult>
+    /** Sign in with an authenticator code or a recovery code. */
     login(input: LoginInput): Promise<LoginResult>
+    /** One-time unlock of data from a password-based version. */
+    unlockLegacy(input: LegacyUnlockInput): Promise<LoginResult>
     logout(): Promise<void>
-    verifyPassword(input: { password: string }): Promise<boolean>
-    changePassword(input: ChangePasswordInput): Promise<void>
+    /** Re-authentication gate for sensitive actions: true if the code is valid. */
+    verifyCode(input: { code: string }): Promise<boolean>
   }
   twoFactor: {
     /** Begin enrolling a new authenticator app — returns the secret + QR. */
     beginEnroll(input: { label?: string }): Promise<EnrollStart>
     /** Confirm enrollment by verifying a code from the authenticator. */
     confirmEnroll(input: ConfirmEnrollInput): Promise<TwoFactorAuthenticator>
-    /** Verify a TOTP or recovery code during the 2FA login gate. */
-    verify(input: VerifyTwoFactorInput): Promise<User>
     /** Generate (and replace) the set of one-time recovery codes. */
     generateRecoveryCodes(): Promise<string[]>
     status(): Promise<TwoFactorStatus>
     removeAuthenticator(input: { id: number }): Promise<void>
-    removeTrustedDevice(input: { id: number }): Promise<void>
   }
   accounts: {
     list(): Promise<Account[]>

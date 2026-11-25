@@ -24,7 +24,8 @@ import { renderReceiptHtml } from '../services/receipt'
 import { getDb, isOpen, flushCurrent } from './database'
 import { MIGRATIONS } from './migrations/runner'
 import { deriveKey, encrypt, decrypt, generateSalt, DEFAULT_KDF } from './crypto'
-import { createKeyfile, readKeyfile } from './keyfile'
+import { createLegacyKeyfile, readKeyfile, dataKeyOf, type KeyfileV2 } from './keyfile'
+import { setupTestAuth, testLogin } from '../services/testAuth'
 import { ensureDataDirs, dataPath } from '../paths'
 
 type Row = Record<string, unknown>
@@ -104,12 +105,13 @@ const fileAll = (file: string, key: Buffer) => {
 const schemaVersion = (all: (sql: string) => Row[]): number => all('SELECT MAX(version) AS v FROM schema_migrations')[0].v as number
 const paymentColumns = (all: (sql: string) => Row[]): string[] => all('PRAGMA table_info(payments)').map((r) => r.name as string)
 
-/** Encrypt a raw database as the live data file under a fresh password key. */
+/** Encrypt a raw database as the live data file the way v1.0.23 did: under a
+ *  key derived from the master password, with a v1 (password) keyfile. */
 function installAsLiveFile(raw: Database): Buffer {
   const salt = generateSalt()
   const key = deriveKey(PASSWORD, salt, DEFAULT_KDF)
   writeFileSync(dataPath('chisel.db'), encrypt(Buffer.from(raw.export()), key))
-  createKeyfile('admin', salt, DEFAULT_KDF)
+  createLegacyKeyfile('admin', salt, DEFAULT_KDF)
   return key
 }
 
@@ -159,9 +161,9 @@ describe('upgrade from v1.0.23 (schema v9) to receipt details (schema v10)', () 
     const key = installAsLiveFile(raw)
     raw.close()
 
-    // --- Sign in with the new build: this runs the upgrade ---
-    const res = await auth.login({ username: 'admin', password: PASSWORD })
-    expect(res.status).toBe('enroll_required')
+    // --- First sign-in with the new build (one-time password unlock): this runs the upgrade ---
+    const res = await auth.unlockLegacy({ password: PASSWORD })
+    expect(res.status).toBe('enroll_required') // this v9 data had no authenticator yet
     expect(schemaVersion(liveAll)).toBe(10)
     expect(paymentColumns(liveAll)).toEqual(expect.arrayContaining(NEW_COLUMNS))
 
@@ -208,7 +210,7 @@ describe('upgrade from v1.0.23 (schema v9) to receipt details (schema v10)', () 
 
     // Signing in again does not migrate or back up a second time.
     await signOut()
-    await auth.login({ username: 'admin', password: PASSWORD })
+    await auth.unlockLegacy({ password: PASSWORD })
     expect(listBackups().filter((b) => b.name.startsWith('pre-update-'))).toHaveLength(1)
     expect(payments.getPayment(1)?.batchName).toBe('IX-A')
     expect(payments.getPayment(5)?.receiptNo).toBe('CHISEL/2026-27/0005')
@@ -216,10 +218,9 @@ describe('upgrade from v1.0.23 (schema v9) to receipt details (schema v10)', () 
 
   it('upgrades a full sample-data database without changing any existing row', async () => {
     freshDataDir()
-    await auth.setup({ username: 'admin', password: PASSWORD })
+    await setupTestAuth()
     await demo.seedDemoData()
-    const kf = readKeyfile()
-    const key = deriveKey(PASSWORD, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
+    const key = dataKeyOf(readKeyfile() as KeyfileV2)
     await signOut()
 
     // Turn the file back into a v1.0.23 (v9) database.
@@ -232,9 +233,11 @@ describe('upgrade from v1.0.23 (schema v9) to receipt details (schema v10)', () 
     expect(before.payments.length).toBeGreaterThan(10)
     expect(before.students.length).toBeGreaterThan(10)
 
-    await auth.login({ username: 'admin', password: PASSWORD })
+    await testLogin()
     expect(schemaVersion(liveAll)).toBe(10)
-    expect(dump(liveAll, { dropColumns: NEW_COLUMNS, skipTables: ['schema_migrations'] })).toEqual(before)
+    expect(dump(liveAll, { dropColumns: NEW_COLUMNS, skipTables: ['schema_migrations', 'audit_log', 'two_factor'] })).toEqual(
+      (({ audit_log: _a, two_factor: _t, ...rest }) => rest)(before)
+    )
 
     // Every payment's details equal the student's current batch / school.
     const rows = liveAll(`
@@ -252,9 +255,9 @@ describe('upgrade from v1.0.23 (schema v9) to receipt details (schema v10)', () 
 
   it('does not back up or migrate a database that is already current', async () => {
     freshDataDir()
-    await auth.setup({ username: 'admin', password: PASSWORD })
+    await setupTestAuth()
     await signOut()
-    await auth.login({ username: 'admin', password: PASSWORD })
+    await testLogin()
     expect(schemaVersion(liveAll)).toBe(10)
     expect(listBackups()).toHaveLength(0)
   })
@@ -271,7 +274,7 @@ describe('upgrade from v1.0.23 (schema v9) to receipt details (schema v10)', () 
     installAsLiveFile(raw)
     raw.close()
     const bytes = readFileSync(dataPath('chisel.db'))
-    await expect(auth.login({ username: 'admin', password: 'wrong-password' })).rejects.toThrow(/Incorrect password/)
+    await expect(auth.unlockLegacy({ password: 'wrong-password' })).rejects.toThrow(/Incorrect password/)
     expect(readFileSync(dataPath('chisel.db')).equals(bytes)).toBe(true)
     expect(listBackups()).toHaveLength(0)
   })

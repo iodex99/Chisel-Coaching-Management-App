@@ -56,7 +56,7 @@ export function BackupSettings(): JSX.Element {
   async function restore(name: string): Promise<void> {
     if (
       !window.confirm(
-        'Restore this backup? Current data is snapshotted first, then replaced. You will be signed out and must log in with the password that was in use when this backup was made.'
+        'Restore this backup? Current data is snapshotted first, then replaced. You will be signed out and sign in again with your authenticator code. (A backup made before v1.0.25 asks once for the master password that was in use then.)'
       )
     )
       return
@@ -97,9 +97,8 @@ export function BackupSettings(): JSX.Element {
             into that PC’s own data folder (shown on its welcome / this screen).
           </li>
           <li>
-            Sign in with <strong>this computer’s master password</strong>, and enter a code from your existing
-            authenticator app (or a recovery code). A new computer always asks for 2FA once — tick “Trust this device”
-            to skip it next time there.
+            Sign in there with a code from your existing authenticator app (or a recovery code) — the same app works on
+            every computer.
           </li>
         </ol>
         <p className="mt-2 text-slate-400">

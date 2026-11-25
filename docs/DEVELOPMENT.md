@@ -53,15 +53,16 @@ npm run dev      # start the app with hot reload
 
 ## Testing strategy
 
-- **Unit (Vitest):** KDF/auth, TOTP across multiple secrets, recovery codes,
-  trusted-device HMAC, receipt numbering, fee/outstanding math, payment
+- **Unit (Vitest):** code-only sign-in/setup, TOTP across multiple secrets,
+  recovery codes, persisted lockout, the one-time legacy-password unlock
+  (`legacyUnlock.test.ts`), receipt numbering, fee/outstanding math, payment
   allocation, report aggregation, migration runner — all against an in-memory or
   temp encrypted DB.
 - **Integration + edge (Vitest):** `integration.test.ts` runs a full dummy-data
   scenario (bulk Excel upload → fees → payments → expenses) and reconciles fee
   summaries, dashboard, dues, reports and a backup round-trip; `edge.test.ts`,
-  `authEdge.test.ts`, `backupRekey.test.ts`, `twoFactorLimit.test.ts` cover FY
-  seams, lockout, 2FA attempt limits, backup-after-rekey, and import robustness.
+  `authEdge.test.ts` cover FY seams, the sign-in lockout and import robustness.
+  Tests set up an account with `setupTestAuth()` from `src/main/services/testAuth.ts`.
 - **E2E (Playwright Electron):** launch the packaged app against a throwaway temp
   data dir and drive first-run setup → login → create student → fee plan →
   payment → receipt → expense → reports → logout.

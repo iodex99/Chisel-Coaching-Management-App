@@ -4,6 +4,51 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.25]
+
+### Changed
+- **No more username or password — sign-in is just the authenticator code.**
+  - **Sign-up:** enter the institute name, scan the QR code with an authenticator
+    app (Google Authenticator, Microsoft Authenticator, Authy, …) and type the
+    6-digit code. That's it; recovery codes are shown next.
+  - **Sign-in:** a single field for the 6-digit code — or a recovery code via
+    “Lost your phone? Use a recovery code”.
+  - Adding another authenticator in Settings now confirms with a current code
+    (or a recovery code) instead of the password.
+- **Removed:** the username/password fields, *Change master password*, and
+  *Trust this device* (with no password, a trusted PC would open with no check at
+  all — every sign-in now needs a code).
+- Error messages no longer start with “Error invoking remote method …”.
+
+### Upgrade & data safety
+- **Existing installs:** the first launch after updating shows a **one-time
+  upgrade** screen — enter the old master password **one last time** plus an
+  authenticator code. After that, sign-in is code-only. The database file is
+  **not re-encrypted or changed**; only `keyfile.json` is rewritten (the same key
+  is kept and stored in it). Quitting half-way leaves everything on the old
+  password.
+- Old data that never finished 2FA setup enrolls an authenticator first and is
+  switched only after that succeeds.
+- **Backups made before this update** still restore; they ask once for the
+  password that was in use when they were made.
+- Wrong codes (and wrong passwords during the upgrade) share the existing
+  lockout: 5 failures lock sign-in for 30 s, doubling after that; it survives a
+  restart.
+- **Security note:** without a password, the database key is stored in
+  `keyfile.json` next to the data, so anyone who copies the whole data folder or
+  a backup can read it. Keep backups somewhere safe and protect the Windows
+  account. In return, a forgotten password can no longer lock you out of your data.
+
+### Tests
+- New suites for code-only setup/sign-in, recovery codes, the persisted lockout,
+  and the one-time upgrade. The upgrade tests build data exactly as v1.0.24 did
+  (sample data included) and check that every record is unchanged, the stored
+  key equals the old one, and pre-/post-switch backups both restore.
+- E2E: QR + code sign-up, code and recovery-code sign-in, the Settings re-auth
+  gate, and a second scenario that converts the app's real data folder to the
+  v1.0.24 password format, relaunches, and goes through the one-time upgrade in
+  the UI.
+
 ## [1.0.24]
 
 ### Added

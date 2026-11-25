@@ -1,19 +1,33 @@
-import { useEffect, useState } from 'react'
-import type { EnrollStart, TwoFactorAuthenticator } from '@shared/types'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { EnrollStart } from '@shared/types'
 import { api, errMessage } from '../../lib/api'
 
 /**
  * Inner enrollment form: shows a QR code + manual secret, then verifies a code
- * from the authenticator app before saving. Reused in the first-run flow and in
- * Settings. The branded wrapper is applied by the caller.
+ * from the authenticator app before saving. Used by first-run setup (with its
+ * own `begin`/`submit` and extra fields) and by Settings → Add authenticator.
+ * The branded wrapper is applied by the caller.
  */
 export function EnrollAuthenticatorForm({
   defaultLabel = '',
+  begin = () => api.twoFactor.beginEnroll({}),
+  submit = async ({ secret, label, code }) => {
+    await api.twoFactor.confirmEnroll({ secret, label: label || 'Authenticator', code })
+  },
+  submitLabel = 'Verify & enable',
+  busyLabel = 'Verifying…',
+  children,
   onEnrolled,
   onCancel
 }: {
   defaultLabel?: string
-  onEnrolled: (auth: TwoFactorAuthenticator) => void
+  begin?: () => Promise<EnrollStart>
+  submit?: (input: { secret: string; label: string; code: string }) => Promise<void>
+  submitLabel?: string
+  busyLabel?: string
+  /** Extra fields rendered above the label / code inputs. */
+  children?: ReactNode
+  onEnrolled: () => void
   onCancel?: () => void
 }): JSX.Element {
   const [data, setData] = useState<EnrollStart | null>(null)
@@ -23,35 +37,32 @@ export function EnrollAuthenticatorForm({
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    api.twoFactor
-      .beginEnroll({})
+    begin()
       .then(setData)
       .catch((e) => setError(errMessage(e)))
-  }, [])
+  }, []) // `begin` is fixed for the lifetime of the form
 
   async function confirm(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     if (!data) return
+    if (code.length !== 6) return setError('Enter the 6-digit code shown in your authenticator app')
     setBusy(true)
     setError('')
     try {
-      const auth = await api.twoFactor.confirmEnroll({
-        secret: data.secret,
-        label: label.trim() || 'Authenticator',
-        code
-      })
-      onEnrolled(auth)
+      await submit({ secret: data.secret, label: label.trim(), code })
+      onEnrolled()
     } catch (err) {
       setError(errMessage(err))
       setBusy(false)
+      setCode('')
     }
   }
 
   return (
     <div>
       <p className="text-sm text-slate-600">
-        Scan this QR code with Google Authenticator, Authy or any TOTP app, then enter the 6-digit code to
-        confirm.
+        Scan this QR code with Google Authenticator, Microsoft Authenticator, Authy or any TOTP app, then enter the
+        6-digit code it shows to confirm.
       </p>
 
       <div className="mt-4 flex flex-col items-center">
@@ -77,8 +88,9 @@ export function EnrollAuthenticatorForm({
       </div>
 
       <form onSubmit={confirm} className="mt-5 space-y-3">
+        {children}
         <div>
-          <label className="label">Label (optional)</label>
+          <label className="label">Device name (optional)</label>
           <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. My phone" />
         </div>
         <div>
@@ -88,6 +100,7 @@ export function EnrollAuthenticatorForm({
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             inputMode="numeric"
+            autoComplete="one-time-code"
             placeholder="000000"
             autoFocus
           />
@@ -95,7 +108,7 @@ export function EnrollAuthenticatorForm({
         {error && <p className="text-sm text-accent-600">{error}</p>}
         <div className="flex gap-2">
           <button type="submit" className="btn-primary flex-1" disabled={busy || !data}>
-            {busy ? 'Verifying…' : 'Verify & enable'}
+            {busy ? busyLabel : submitLabel}
           </button>
           {onCancel && (
             <button type="button" className="btn-outline" onClick={onCancel} disabled={busy}>

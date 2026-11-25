@@ -1,48 +1,63 @@
 # Security Model
 
-## Authentication & data-at-rest
+## Sign-in: authenticator code only (since v1.0.25)
 
-The master password **is** the database key:
+There is **no username and no password**. Signing up and signing in both use a
+TOTP authenticator app (Google Authenticator, Microsoft Authenticator, Authy, …):
 
-1. On login, the app derives `key = scrypt(password, kdfSalt, params)`
-   (N=32768, r=8, p=1, 32-byte key) — `src/main/db/crypto.ts`.
-2. The encrypted database file is decrypted with that key (AES-256-GCM). A
-   correct password decrypts it and the GCM **auth tag** validates; a wrong
-   password (or a tampered file) makes decryption throw — so the auth tag *is*
-   the password verifier, with no secret stored anywhere.
-3. A non-secret sidecar `data/keyfile.json` stores `{ username, kdf: { salt,
-   N, r, p, keylen }, failedAttempts, lockedUntil }` — **no key, no password**.
-   It supplies the KDF parameters and holds lockout state.
-4. **Change password** re-encrypts the database under a freshly-derived key and
-   new salt (`Db.rekey`), updates the keyfile, and takes a backup first.
+- **Sign-up (first run):** the app shows a QR code; the user scans it and enters
+  the 6-digit code. Only when that code verifies is anything written — the
+  encrypted database, the authenticator and the keyfile are created together
+  (`auth.beginSetup` → `auth.setup`). One-time recovery codes are shown next.
+- **Sign-in:** one field — the current 6-digit code from any enrolled app, or a
+  one-time recovery code (`auth.login`). Every sign-in needs a code; there is no
+  "trusted device" skip.
+- **Re-authentication:** sensitive actions (adding an authenticator) ask for a
+  current code (or a recovery code) — `auth.verifyCode`.
 
-> ⚠️ Because encryption is bound to the password, a forgotten master password
-> means the data cannot be decrypted. This is mitigated by recovery codes (for
-> 2FA) and routine encrypted backups. This trade-off is surfaced during setup.
+## Data at rest
 
-## Two-factor authentication (TOTP)
+1. The database file is encrypted with **AES-256-GCM** under a random 256-bit
+   key generated at setup (`src/main/db/crypto.ts`). The GCM auth tag detects a
+   wrong key or a tampered file.
+2. With no password to derive a key from, the key is stored in
+   `data/keyfile.json` (version 2: `{ dataKey, failedAttempts, lockedUntil, … }`).
+   Keeping it beside the database makes the data folder — and every backup
+   folder, which holds its own `keyfile.json` — self-contained: copy it to
+   another PC and it opens with the same authenticator app.
 
-- Mandatory on untrusted devices. Implemented with `otplib`.
-- Up to **3 authenticator apps** may be enrolled (e.g. Google Authenticator,
-  Authy). Verification tries each enrolled secret.
-- **Recovery codes:** ~10 single-use codes, stored as `scrypt` hashes, shown
-  once at setup and re-generatable from Settings.
-- **Brute-force protection:** failed attempts are counted and trigger an
-  exponential lockout window stored against the account.
+> ⚠️ **Trade-off:** because the key sits next to the data, the encryption no
+> longer protects against someone who copies the whole `data` folder (or a
+> backup) — they hold both. Protection against that relies on Windows account
+> security / disk encryption (e.g. BitLocker) and on keeping backups somewhere
+> safe. In exchange, there is no password to forget: losing a password used to
+> mean losing the data permanently.
 
-## Trusted devices (machine-bound, not data-bound)
+## Two-factor (TOTP) details
 
-A "trusted device" lets the user skip the TOTP step on a known machine, up to 3
-devices — **without** that trust travelling when the portable data folder is
-copied:
+- Implemented with `otplib`; ±1 time step (30 s) tolerance for clock skew.
+- Up to **3 authenticator apps**; verification tries each enrolled secret. The
+  last one cannot be removed.
+- **Recovery codes:** 10 single-use codes (`XXXXX-XXXXX`), stored only as
+  `scrypt` hashes, shown once and re-generatable from Settings.
+- **Brute-force protection:** wrong codes (and, during the one-time upgrade,
+  wrong passwords) share a counter persisted in `keyfile.json`. After 5 failures
+  sign-in is locked for 30 s, doubling with each further failure (capped at
+  ~8.5 h). The lock survives restarts; a successful sign-in clears it.
 
-- A per-machine secret is stored in `app.getPath('userData')` (Windows AppData),
-  which lives **outside** the portable `data/` folder.
-- The portable DB stores only the device id + an HMAC keyed by that machine
-  secret.
-- A device is trusted only when the machine-local secret reproduces the stored
-  HMAC. Copying `data/` to a new PC yields no matching secret → TOTP is required
-  there. This keeps a stolen/copied drive from inheriting trust.
+## Upgrading from a password-based version (≤ v1.0.24)
+
+Older data is encrypted under `scrypt(master password)` with a version-1
+keyfile holding only the salt + KDF parameters. On the first launch after the
+update the sign-in screen asks **once** for that password plus an authenticator
+code (`auth.unlockLegacy`). Then the keyfile is rewritten as version 2 holding
+**the same key** — the database file itself is not re-encrypted, so no record
+changes. Data that never finished 2FA enrollment enrolls an authenticator first
+and is converted only after that succeeds.
+
+Restoring a backup made by an older version brings back its version-1 keyfile,
+so that backup is unlocked the same way, once, with the password in use when it
+was made.
 
 ## Other controls
 
@@ -50,15 +65,15 @@ copied:
   the renderer has no Node/DB access and reaches main only via the typed bridge.
 - **Input validation:** every IPC payload is validated with Zod in main.
 - **External links** open in the OS browser, never in-app.
-- **Session:** held in main-process memory; idle-timeout auto-logout; explicit
-  logout clears the key and closes the DB handle.
-- **Audit log:** sensitive actions (login, payment, expense, settings, security
-  changes) are recorded.
+- **Session:** held in main-process memory; sign-out closes the database.
+- **Audit log:** sensitive actions (setup, login, the password removal, payment,
+  expense, settings, security changes) are recorded.
 
 ## Status
 
 | Control | State |
 |---|---|
 | Renderer isolation, CSP | ✅ Phase 0 |
-| Password-derived AES-256-GCM encryption, keyfile, lockout, change-password | ✅ Phase 1 |
-| TOTP (≤3 apps), recovery codes, machine-bound trusted devices (≤3) | ✅ Phase 2 |
+| AES-256-GCM encryption, keyfile, persisted lockout | ✅ Phase 1 |
+| TOTP (≤3 apps), recovery codes | ✅ Phase 2 |
+| Authenticator-only sign-in (no username/password), legacy one-time unlock | ✅ v1.0.25 |

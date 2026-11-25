@@ -30,9 +30,8 @@ All data lives in one folder (path + an **Open folder** button are in
 
 ### Moving to another PC
 
-The database key is derived purely from the master password + the salt in
-`keyfile.json` (no machine binding), so the `data` folder is fully portable.
-Procedure:
+The database key is stored in `keyfile.json` beside the database (no machine
+binding), so the `data` folder is fully portable. Procedure:
 
 1. **Close Chisel on both PCs first** — otherwise the running app re-writes the
    DB on exit and can clobber a freshly-pasted folder.
@@ -42,15 +41,10 @@ Procedure:
    folder (this calls `app:importData`, which copies `keyfile.json` + `chisel.db`
    (+ `receipts`/`backups`) into the new PC's data dir, then the app reloads).
    Manual alternative: paste the folder into the new PC's own data path.
-4. Sign in with the **old PC's master password** (the keyfile travels with the
-   data — the new sign-up password, if you created one, will NOT work).
+4. Sign in with a code from your **existing** authenticator app (or a recovery
+   code) — their secrets travel inside the database. Any authenticator enrolled
+   during a throw-away sign-up on the new PC is overwritten by the import.
 
-> **Two-factor:** a new machine always requires 2FA once — trust is bound to the
-> machine, not the data (see [SECURITY.md](SECURITY.md)). Your **existing**
-> authenticator app and recovery codes still work (their secrets are in the DB);
-> any 2FA you enrolled during a throw-away sign-up on the new PC is overwritten
-> by the import. Tick "Trust this device" to skip 2FA there next time.
->
 > There is **no automatic sync** — repeat the copy whenever you want the other PC
 > up to date.
 
@@ -73,8 +67,10 @@ button are in **Settings → Data & backups**), or use **Backup → Restore**.
 - **Automatic backups:** timestamped copies of the encrypted DB are written to
   `data/backups/` (rotated). Configurable in Settings.
 - **Manual backup/restore:** available from Settings.
-- Backups are encrypted with the same key as the live DB, so keep the master
-  password safe.
+- Each backup folder holds the database and its own `keyfile.json`, so it can
+  be restored on any PC. Because the key travels with it, store backup copies
+  somewhere only you can reach. A backup made by v1.0.24 or earlier asks once,
+  when restored, for the master password that was in use then.
 
 ## Updates
 
@@ -83,9 +79,10 @@ only; `data/` is preserved and the app relaunches automatically.
 
 ## First run
 
-On first launch the setup wizard collects the institute name, creates the admin
-account + master password (which initializes the encrypted DB), enrolls the
-first authenticator app, and shows the recovery codes.
+On first launch the setup screen shows a QR code and collects the institute
+name. Scanning it and entering the 6-digit code creates the encrypted database
+with that authenticator enrolled — there is no username or password — and the
+recovery codes are shown next.
 
 ## Status
 

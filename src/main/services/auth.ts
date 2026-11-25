@@ -1,11 +1,16 @@
+import { randomBytes } from 'crypto'
 import log from 'electron-log/main'
-import { generateSalt, deriveKey, DEFAULT_KDF, type KdfParams } from '../db/crypto'
+import { deriveKey } from '../db/crypto'
 import {
   keyfileExists,
   readKeyfile,
   writeKeyfile,
   createKeyfile,
-  type KeyfileData
+  isLegacyKeyfile,
+  dataKeyOf,
+  convertLegacyKeyfile,
+  type KeyfileData,
+  type LegacyKeyfile
 } from '../db/keyfile'
 import {
   createNewDatabase,
@@ -13,32 +18,35 @@ import {
   closeDatabase,
   discardDatabase,
   getDb,
-  dbFileExists,
-  backupDbFile
+  isOpen,
+  dbFileExists
 } from '../db/database'
 import * as twoFactor from './twoFactor'
+import { getSetting } from './settings'
 import type {
   AuthState,
   AuthStage,
+  EnrollStart,
   SetupInput,
   LoginInput,
-  ChangePasswordInput,
+  LegacyUnlockInput,
   LoginResult,
-  VerifyTwoFactorInput,
   User
 } from '@shared/types'
 
 const MAX_ATTEMPTS = 5
 const LOCK_BASE_MS = 30_000 // doubles for each failure past the threshold
-const MAX_2FA_ATTEMPTS = 5 // wrong codes allowed before the session is dropped
+const DEFAULT_INSTITUTE = 'Chisel Coaching Classes'
 
 interface Session {
   user: User
-  key: Buffer
   stage: AuthStage
   loginAt: number
   lastActivity: number
-  twoFactorAttempts: number
+  /** Set while unlocking password-based data that has no authenticator yet:
+   *  the keyfile is converted only once enrollment succeeds, so quitting
+   *  half-way leaves the data still protected by its old password. */
+  pendingLegacy?: { kf: LegacyKeyfile; key: Buffer }
 }
 
 let session: Session | null = null
@@ -55,7 +63,7 @@ export function getStage(): AuthStage | null {
 
 export function getAuthState(): AuthState {
   if (!isInitialized()) {
-    return { initialized: false, authenticated: false, stage: null, locked: false, lockedUntil: null, username: null }
+    return { initialized: false, authenticated: false, stage: null, locked: false, lockedUntil: null, legacyPassword: false }
   }
   const kf = readKeyfile()
   const lockedUntilMs = kf.lockedUntil ? Date.parse(kf.lockedUntil) : 0
@@ -66,7 +74,7 @@ export function getAuthState(): AuthState {
     stage: session?.stage ?? null,
     locked,
     lockedUntil: locked ? new Date(lockedUntilMs).toISOString() : null,
-    username: kf.username
+    legacyPassword: isLegacyKeyfile(kf)
   }
 }
 
@@ -86,12 +94,20 @@ export function currentUser(): User | null {
   return session?.user ?? null
 }
 
-/** Verify the master password against the active session (for re-auth gates). */
-export function verifyPassword(password: string): boolean {
-  const s = requireSession()
-  const kf = readKeyfile()
-  const key = deriveKey(password, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
-  return key.equals(s.key)
+/** The account name shown in authenticator apps: the institute's name. */
+export function accountName(): string {
+  try {
+    return getSetting('institute.name')?.trim() || DEFAULT_INSTITUTE
+  } catch {
+    return DEFAULT_INSTITUTE
+  }
+}
+
+/** Re-authentication gate for sensitive actions (e.g. adding an authenticator):
+ *  true if `code` is a valid authenticator or unused recovery code. */
+export function verifyCode(code: string): boolean {
+  requireSession()
+  return twoFactor.verifyTotp(code) || twoFactor.verifyRecoveryCode(code)
 }
 
 function audit(action: string): void {
@@ -104,129 +120,165 @@ function audit(action: string): void {
   }
 }
 
-/** First-run setup: create the admin, initialize the encrypted DB. 2FA enrollment follows. */
+function loadUser(): User {
+  const row = getDb().get<{ username: string; display_name: string | null }>(
+    'SELECT username, display_name FROM app_user WHERE id = 1'
+  )
+  const username = row?.username ?? 'admin'
+  return { id: 1, username, displayName: row?.display_name ?? username }
+}
+
+function startSession(user: User, stage: AuthStage): void {
+  session = { user, stage, loginAt: Date.now(), lastActivity: Date.now() }
+}
+
+// --- First-run setup ---
+
+/** First run: a fresh authenticator secret + QR code to scan. Nothing is stored
+ *  until `setup` proves the app was scanned by returning a valid code. */
+export async function beginSetup(instituteName?: string): Promise<EnrollStart> {
+  if (isInitialized()) throw new Error('The application is already set up')
+  return twoFactor.newEnrollment(instituteName?.trim() || DEFAULT_INSTITUTE)
+}
+
+/** First-run setup: verify the code from the scanned authenticator, then create
+ *  the encrypted database (random key) with that authenticator in one step. */
 export async function setup(input: SetupInput): Promise<LoginResult> {
   if (isInitialized()) throw new Error('The application is already set up')
+  twoFactor.assertSecretCode(input.secret, input.code)
 
-  const salt = generateSalt()
-  const params: KdfParams = DEFAULT_KDF
-  const key = deriveKey(input.password, salt, params)
-
+  const key = randomBytes(32)
   const db = await createNewDatabase(key)
   const ts = now()
   db.transaction((d) => {
     d.run('INSERT INTO app_user (id, username, display_name, created_at, updated_at) VALUES (1, ?, ?, ?, ?)', [
-      input.username,
-      input.username,
+      'admin',
+      'Admin',
       ts,
       ts
     ])
     d.run('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)', [
       'institute.name',
-      input.instituteName?.trim() || 'Chisel Coaching Classes',
+      input.instituteName?.trim() || DEFAULT_INSTITUTE,
       ts
     ])
+    twoFactor.insertAuthenticator(d, input.secret, input.label ?? '')
     d.run('INSERT INTO audit_log (user_id, action, created_at) VALUES (1, ?, ?)', ['setup', ts])
   })
+  // The database must be on disk before the keyfile marks the app as set up.
+  await db.flush()
+  createKeyfile(key)
 
-  createKeyfile(input.username, salt, params)
-
-  const user: User = { id: 1, username: input.username, displayName: input.username }
-  // 2FA is mandatory, so a fresh account must enroll an authenticator next.
-  session = { user, key, stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
-  log.info(`First-run setup completed for "${input.username}"`)
-  return { status: 'enroll_required', user }
+  const user = loadUser()
+  startSession(user, 'authenticated')
+  log.info('First-run setup completed (authenticator enrolled)')
+  return { status: 'ok', user }
 }
 
-/** Verify the master password by decrypting the DB; decide the next stage. */
+// --- Sign in ---
+
+/** Sign in with an authenticator code or a one-time recovery code. */
 export async function login(input: LoginInput): Promise<LoginResult> {
   if (!isInitialized()) throw new Error('The application is not set up yet')
   const kf = readKeyfile()
+  if (isLegacyKeyfile(kf)) {
+    throw new Error('This data was created with a master password. Unlock it once with that password to continue.')
+  }
+  if (kf.lockedUntil && Date.parse(kf.lockedUntil) > Date.now()) throw lockError(kf)
 
+  await openData(dataKeyOf(kf))
+
+  if (twoFactor.enrolledCount() === 0) {
+    // Not reachable through the app (setup enrolls atomically and the last
+    // authenticator cannot be removed); never lock the owner out of their data.
+    startSession(loadUser(), 'pending-enroll')
+    return { status: 'enroll_required', user: loadUser() }
+  }
+
+  const code = input.code.trim()
+  if (!(twoFactor.verifyTotp(code) || twoFactor.verifyRecoveryCode(code))) {
+    closeDatabase()
+    throw failure(kf, 'Invalid authentication code')
+  }
+  clearFailures(kf)
+
+  const user = loadUser()
+  startSession(user, 'authenticated')
+  audit('login')
+  log.info('Signed in with an authenticator code')
+  return { status: 'ok', user }
+}
+
+/** One-time unlock of data created by a password-based version (≤ v1.0.24, or a
+ *  backup made by one). Verifies the old password and an authenticator code,
+ *  then switches the keyfile to code-only sign-in — keeping the same key, so the
+ *  database file itself is not rewritten. */
+export async function unlockLegacy(input: LegacyUnlockInput): Promise<LoginResult> {
+  if (!isInitialized()) throw new Error('The application is not set up yet')
+  const kf = readKeyfile()
+  if (!isLegacyKeyfile(kf)) throw new Error('This data is already up to date — sign in with your authenticator code.')
   if (kf.lockedUntil && Date.parse(kf.lockedUntil) > Date.now()) throw lockError(kf)
 
   const key = deriveKey(input.password, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
   try {
-    await openExistingDatabase(key)
+    await openData(key, true)
   } catch {
-    registerFailure(kf)
-    throw new Error('Incorrect password')
+    throw failure(kf, 'Incorrect password')
   }
 
-  if (input.username && input.username.trim().toLowerCase() !== kf.username.toLowerCase()) {
-    closeDatabase()
-    registerFailure(kf)
-    throw new Error('Incorrect username or password')
-  }
-
-  kf.failedAttempts = 0
-  kf.lockedUntil = null
-  kf.updatedAt = now()
-  writeKeyfile(kf)
-
-  const row = getDb().get<{ username: string; display_name: string | null }>(
-    'SELECT username, display_name FROM app_user WHERE id = 1'
-  )
-  const user: User = {
-    id: 1,
-    username: row?.username ?? kf.username,
-    displayName: row?.display_name ?? row?.username ?? kf.username
-  }
-
-  // Decide the gate: enroll if no authenticators, skip 2FA on a trusted device.
   if (twoFactor.enrolledCount() === 0) {
-    session = { user, key, stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
-    return { status: 'enroll_required', user }
+    // Old data that never finished 2FA enrollment: enroll first, convert after.
+    session = { user: loadUser(), stage: 'pending-enroll', loginAt: Date.now(), lastActivity: Date.now(), pendingLegacy: { kf, key } }
+    return { status: 'enroll_required', user: session.user }
   }
-  if (twoFactor.isCurrentDeviceTrusted()) {
-    session = { user, key, stage: 'authenticated', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
-    audit('login')
-    log.info(`User "${user.username}" logged in (trusted device)`)
-    return { status: 'ok', user }
+
+  const code = input.code?.trim() ?? ''
+  if (!code || !(twoFactor.verifyTotp(code) || twoFactor.verifyRecoveryCode(code))) {
+    closeDatabase()
+    throw failure(kf, code ? 'Invalid authentication code' : 'Enter the 6-digit code from your authenticator app')
   }
-  session = { user, key, stage: 'pending-2fa', loginAt: Date.now(), lastActivity: Date.now(), twoFactorAttempts: 0 }
-  return { status: '2fa_required', user }
+
+  convertLegacyKeyfile(kf, key)
+  const user = loadUser()
+  startSession(user, 'authenticated')
+  audit('login')
+  audit('remove-password')
+  log.info('Password-based data unlocked and switched to authenticator-only sign-in')
+  return { status: 'ok', user }
 }
 
-/** Complete the 2FA gate with a TOTP or recovery code. */
-export function verifyTwoFactor(input: VerifyTwoFactorInput): User {
-  const s = requireStage('pending-2fa')
-  const code = input.code.trim()
-  const ok = twoFactor.verifyTotp(code) || twoFactor.verifyRecoveryCode(code)
-  if (!ok) {
-    // Rate-limit code guessing within the gate: drop the session after too many
-    // wrong codes so an attacker can't brute-force TOTP after the password step.
-    s.twoFactorAttempts += 1
-    if (s.twoFactorAttempts >= MAX_2FA_ATTEMPTS) {
-      logout()
-      throw new Error('Too many invalid codes. Please sign in again.')
-    }
-    throw new Error('Invalid authentication code')
+/** Open the database with `key`. A wrong key for a legacy password is the
+ *  caller's to report; for the stored key it means the files do not match. */
+async function openData(key: Buffer, legacy = false): Promise<void> {
+  session = null // a sign-in attempt always starts from a signed-out state
+  if (isOpen()) closeDatabase()
+  try {
+    await openExistingDatabase(key)
+  } catch (err) {
+    if (legacy) throw err
+    log.error('Could not decrypt the database with the stored key:', err)
+    throw new Error(
+      'The data could not be opened: chisel.db does not match keyfile.json (or is damaged). Restore a backup from Settings → Backups on another copy, or import your data folder again.'
+    )
   }
-  if (input.trustDevice) {
-    try {
-      twoFactor.trustCurrentDevice()
-    } catch (err) {
-      log.warn('Could not trust device:', err)
-    }
-  }
-  s.stage = 'authenticated'
-  audit('login')
-  log.info(`User "${s.user.username}" logged in`)
-  return s.user
 }
 
 /** Called after a successful enrollment to leave the pending-enroll stage. */
 export function noteEnrollment(): void {
   if (session && session.stage === 'pending-enroll' && twoFactor.enrolledCount() > 0) {
+    if (session.pendingLegacy) {
+      convertLegacyKeyfile(session.pendingLegacy.kf, session.pendingLegacy.key)
+      session.pendingLegacy = undefined
+      audit('remove-password')
+    }
     session.stage = 'authenticated'
     audit('login')
-    log.info(`User "${session.user.username}" logged in (after enrollment)`)
+    log.info('Signed in (after enrolling an authenticator)')
   }
 }
 
 export function logout(): void {
-  if (session) audit('logout')
+  if (session && isOpen()) audit('logout')
   closeDatabase()
   session = null
 }
@@ -238,32 +290,11 @@ export function discardSession(): void {
   discardDatabase()
 }
 
-/** Change the master password and re-encrypt the database under the new key. */
-export async function changePassword(input: ChangePasswordInput): Promise<void> {
-  const s = requireSession()
-  const kf = readKeyfile()
+// --- Lockout ---
 
-  const currentKey = deriveKey(input.currentPassword, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
-  if (!currentKey.equals(s.key)) throw new Error('Current password is incorrect')
-
-  // Ensure any pending async write (old key) is flushed before we snapshot + rekey.
-  await getDb().flush()
-  backupDbFile('pre-rekey')
-
-  const newSalt = generateSalt()
-  const newKey = deriveKey(input.newPassword, newSalt, DEFAULT_KDF)
-  getDb().rekey(newKey)
-
-  kf.kdf = { salt: newSalt.toString('base64'), ...DEFAULT_KDF }
-  kf.updatedAt = now()
-  writeKeyfile(kf)
-  s.key = newKey
-
-  audit('change-password')
-  log.info('Master password changed')
-}
-
-function registerFailure(kf: KeyfileData): void {
+/** Count a failed attempt (persisted, so restarting the app does not reset it)
+ *  and return the error to throw — the lockout message once locked. */
+function failure(kf: KeyfileData, message: string): Error {
   kf.failedAttempts = (kf.failedAttempts ?? 0) + 1
   if (kf.failedAttempts >= MAX_ATTEMPTS) {
     // Cap the exponent so the backoff can't overflow to an Invalid Date
@@ -271,6 +302,15 @@ function registerFailure(kf: KeyfileData): void {
     const over = Math.min(kf.failedAttempts - MAX_ATTEMPTS, 10)
     kf.lockedUntil = new Date(Date.now() + LOCK_BASE_MS * 2 ** over).toISOString()
   }
+  kf.updatedAt = now()
+  writeKeyfile(kf)
+  return kf.failedAttempts >= MAX_ATTEMPTS ? lockError(kf) : new Error(message)
+}
+
+function clearFailures(kf: KeyfileData): void {
+  if (!kf.failedAttempts && !kf.lockedUntil) return
+  kf.failedAttempts = 0
+  kf.lockedUntil = null
   kf.updatedAt = now()
   writeKeyfile(kf)
 }

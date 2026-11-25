@@ -25,11 +25,10 @@ import * as pdc from './services/pdc'
 import {
   setupSchema,
   loginSchema,
-  verifyPasswordSchema,
-  changePasswordSchema,
+  legacyUnlockSchema,
+  verifyCodeSchema,
   beginEnrollSchema,
   confirmEnrollSchema,
-  verifyTwoFactorSchema,
   idSchema,
   accountInputSchema,
   accountUpdateSchema,
@@ -119,21 +118,22 @@ export function registerIpc(): void {
     for (const sub of ['receipts', 'backups']) {
       if (existsSync(join(src, sub))) cpSync(join(src, sub), join(dest, sub), { recursive: true })
     }
-    return { imported: true, message: 'Data imported. Sign in with the master password from your other computer.' }
+    return { imported: true, message: 'Data imported. Sign in with your authenticator app (or a recovery code).' }
   })
 
   // Authentication & session
   handle('auth:getState', null, () => auth.getAuthState())
+  handle('auth:beginSetup', null, () => auth.beginSetup())
   handle('auth:setup', setupSchema, (i) => auth.setup(i))
   handle('auth:login', loginSchema, (i) => auth.login(i))
+  handle('auth:unlockLegacy', legacyUnlockSchema, (i) => auth.unlockLegacy(i))
   handle('auth:logout', null, () => auth.logout())
-  handleAuthed('auth:verifyPassword', verifyPasswordSchema, (i) => auth.verifyPassword(i.password))
-  handle('auth:changePassword', changePasswordSchema, (i) => auth.changePassword(i))
+  handleAuthed('auth:verifyCode', verifyCodeSchema, (i) => auth.verifyCode(i.code))
 
   // Two-factor authentication
   handle('twofactor:beginEnroll', beginEnrollSchema, (i) => {
-    const s = auth.requireStage('pending-enroll', 'authenticated')
-    return twoFactor.beginEnroll(i.label, s.user.username)
+    auth.requireStage('pending-enroll', 'authenticated')
+    return twoFactor.beginEnroll(i.label, auth.accountName())
   })
   handle('twofactor:confirmEnroll', confirmEnrollSchema, (i) => {
     auth.requireStage('pending-enroll', 'authenticated')
@@ -141,7 +141,6 @@ export function registerIpc(): void {
     auth.noteEnrollment()
     return result
   })
-  handle('twofactor:verify', verifyTwoFactorSchema, (i) => auth.verifyTwoFactor(i))
   handle('twofactor:generateRecoveryCodes', null, () => {
     auth.requireStage('authenticated')
     return twoFactor.generateRecoveryCodes()
@@ -153,10 +152,6 @@ export function registerIpc(): void {
   handle('twofactor:removeAuthenticator', idSchema, (i) => {
     auth.requireStage('authenticated')
     twoFactor.removeAuthenticator(i.id)
-  })
-  handle('twofactor:removeTrustedDevice', idSchema, (i) => {
-    auth.requireStage('authenticated')
-    twoFactor.removeTrustedDevice(i.id)
   })
 
   // Accounts

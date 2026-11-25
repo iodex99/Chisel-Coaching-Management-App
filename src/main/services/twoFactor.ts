@@ -1,22 +1,10 @@
 import { randomBytes } from 'crypto'
-import { hostname } from 'os'
 import { authenticator } from 'otplib'
 import qrcode from 'qrcode'
-import { getDb } from '../db/database'
+import { getDb, type Db } from '../db/database'
 import { hashSecret, verifySecret } from '../db/crypto'
-import { getDeviceIdentity, computeDeviceHmac } from './device'
-import {
-  MAX_AUTHENTICATORS,
-  MAX_TRUSTED_DEVICES,
-  RECOVERY_CODE_COUNT,
-  TOTP_ISSUER
-} from '@shared/constants'
-import type {
-  EnrollStart,
-  TwoFactorAuthenticator,
-  TwoFactorStatus,
-  TrustedDevice
-} from '@shared/types'
+import { MAX_AUTHENTICATORS, RECOVERY_CODE_COUNT, TOTP_ISSUER } from '@shared/constants'
+import type { EnrollStart, TwoFactorAuthenticator, TwoFactorStatus } from '@shared/types'
 
 // Allow ±1 time step (30s) to tolerate clock skew between machines.
 authenticator.options = { window: 1 }
@@ -29,34 +17,52 @@ export function enrolledCount(): number {
   return getDb().get<{ c: number }>('SELECT COUNT(*) AS c FROM two_factor')?.c ?? 0
 }
 
-export async function beginEnroll(label: string | undefined, username: string): Promise<EnrollStart> {
-  if (enrolledCount() >= MAX_AUTHENTICATORS) {
-    throw new Error(`You can enroll at most ${MAX_AUTHENTICATORS} authenticator apps`)
-  }
+/** A fresh TOTP secret + QR code. Needs no database, so first-run setup can
+ *  show it before any data exists. `account` is the name shown in the app. */
+export async function newEnrollment(account: string, label?: string): Promise<EnrollStart> {
   const secret = authenticator.generateSecret()
-  const accountLabel = label?.trim() ? `${username} (${label.trim()})` : username
+  const name = account.trim() || 'Admin'
+  const accountLabel = label?.trim() ? `${name} (${label.trim()})` : name
   const otpauthUrl = authenticator.keyuri(accountLabel, TOTP_ISSUER, secret)
   const qrDataUrl = await qrcode.toDataURL(otpauthUrl, { margin: 1, width: 220 })
   return { secret, otpauthUrl, qrDataUrl }
+}
+
+export async function beginEnroll(label: string | undefined, account: string): Promise<EnrollStart> {
+  if (enrolledCount() >= MAX_AUTHENTICATORS) {
+    throw new Error(`You can enroll at most ${MAX_AUTHENTICATORS} authenticator apps`)
+  }
+  return newEnrollment(account, label)
+}
+
+/** Throws unless `code` is the current code for `secret` (±30s). */
+export function assertSecretCode(secret: string, code: string): void {
+  if (!authenticator.verify({ token: code.replace(/\s/g, ''), secret })) {
+    throw new Error('That code is not valid. Make sure your device time is correct and try again.')
+  }
+}
+
+/** Store an authenticator. Use inside an open transaction or via confirmEnroll. */
+export function insertAuthenticator(d: Db, secret: string, label: string): TwoFactorAuthenticator {
+  const createdAt = now()
+  const finalLabel = label?.trim() || 'Authenticator'
+  const id = d.run('INSERT INTO two_factor (label, secret, created_at) VALUES (?, ?, ?)', [
+    finalLabel,
+    secret,
+    createdAt
+  ]).lastInsertRowid
+  return { id, label: finalLabel, createdAt, lastUsedAt: null }
 }
 
 export function confirmEnroll(secret: string, label: string, code: string): TwoFactorAuthenticator {
   if (enrolledCount() >= MAX_AUTHENTICATORS) {
     throw new Error(`You can enroll at most ${MAX_AUTHENTICATORS} authenticator apps`)
   }
-  if (!authenticator.verify({ token: code.replace(/\s/g, ''), secret })) {
-    throw new Error('That code is not valid. Make sure your device time is correct and try again.')
+  assertSecretCode(secret, code)
+  if (getDb().get('SELECT id FROM two_factor WHERE secret = ?', [secret])) {
+    throw new Error('This authenticator is already added')
   }
-  const createdAt = now()
-  const finalLabel = label?.trim() || 'Authenticator'
-  const id = getDb().transaction((d) =>
-    d.run('INSERT INTO two_factor (label, secret, created_at) VALUES (?, ?, ?)', [
-      finalLabel,
-      secret,
-      createdAt
-    ]).lastInsertRowid
-  )
-  return { id, label: finalLabel, createdAt, lastUsedAt: null }
+  return getDb().transaction((d) => insertAuthenticator(d, secret, label))
 }
 
 export function listAuthenticators(): TwoFactorAuthenticator[] {
@@ -116,7 +122,9 @@ export function generateRecoveryCodes(): string[] {
 
 export function verifyRecoveryCode(code: string): boolean {
   const candidate = normalizeRecoveryCode(code)
-  if (!candidate) return false
+  // Recovery codes are exactly 10 hex characters (XXXXX-XXXXX); anything else
+  // (e.g. a 6-digit authenticator code) cannot match, so skip the scrypt work.
+  if (!/^[0-9A-F]{10}$/.test(candidate)) return false
   const rows = getDb().all<{ id: number; code_hash: string }>(
     'SELECT id, code_hash FROM recovery_codes WHERE used_at IS NULL'
   )
@@ -133,65 +141,12 @@ export function recoveryCodesRemaining(): number {
   return getDb().get<{ c: number }>('SELECT COUNT(*) AS c FROM recovery_codes WHERE used_at IS NULL')?.c ?? 0
 }
 
-// --- Trusted devices ---
-
-export function isCurrentDeviceTrusted(): boolean {
-  const { deviceId, deviceSecret } = getDeviceIdentity()
-  const row = getDb().get<{ hmac: string }>('SELECT hmac FROM trusted_devices WHERE device_id = ?', [deviceId])
-  if (!row) return false
-  if (row.hmac !== computeDeviceHmac(deviceId, deviceSecret)) return false
-  getDb().transaction((d) =>
-    d.run('UPDATE trusted_devices SET last_seen_at = ? WHERE device_id = ?', [now(), deviceId])
-  )
-  return true
-}
-
-export function trustCurrentDevice(label?: string): void {
-  const { deviceId, deviceSecret } = getDeviceIdentity()
-  if (getDb().get('SELECT id FROM trusted_devices WHERE device_id = ?', [deviceId])) return
-  const count = getDb().get<{ c: number }>('SELECT COUNT(*) AS c FROM trusted_devices')?.c ?? 0
-  if (count >= MAX_TRUSTED_DEVICES) {
-    throw new Error(`You can trust at most ${MAX_TRUSTED_DEVICES} devices. Remove one in Settings first.`)
-  }
-  const createdAt = now()
-  getDb().transaction((d) =>
-    d.run('INSERT INTO trusted_devices (device_id, hmac, label, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)', [
-      deviceId,
-      computeDeviceHmac(deviceId, deviceSecret),
-      label?.trim() || hostname(),
-      createdAt,
-      createdAt
-    ])
-  )
-}
-
-export function listTrustedDevices(): TrustedDevice[] {
-  const { deviceId } = getDeviceIdentity()
-  return getDb()
-    .all<{ id: number; device_id: string; label: string | null; created_at: string; last_seen_at: string | null }>(
-      'SELECT id, device_id, label, created_at, last_seen_at FROM trusted_devices ORDER BY created_at'
-    )
-    .map((r) => ({
-      id: r.id,
-      label: r.label ?? 'Device',
-      createdAt: r.created_at,
-      lastSeenAt: r.last_seen_at,
-      current: r.device_id === deviceId
-    }))
-}
-
-export function removeTrustedDevice(id: number): void {
-  getDb().transaction((d) => d.run('DELETE FROM trusted_devices WHERE id = ?', [id]))
-}
-
 // --- Aggregate status (Settings) ---
 
 export function status(): TwoFactorStatus {
   return {
     enrolledCount: enrolledCount(),
     authenticators: listAuthenticators(),
-    recoveryCodesRemaining: recoveryCodesRemaining(),
-    deviceTrusted: isCurrentDeviceTrusted(),
-    trustedDevices: listTrustedDevices()
+    recoveryCodesRemaining: recoveryCodesRemaining()
   }
 }

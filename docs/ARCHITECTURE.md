@@ -76,8 +76,8 @@ build/                electron-builder build resources
 - The renderer is presentation-only; all rules (fee math, receipt numbering,
   outstanding calculation) live in main-process services so they are unit-
   testable without Electron.
-- The database is opened **once** in the main process after the master password
-  unlocks it; the handle is shared by all services.
+- The database is opened **once** in the main process after a valid
+  authenticator code signs in; the handle is shared by all services.
 - All money is stored in **integer paise** (₹ × 100) to avoid floating-point
   drift, and formatted for display in the renderer.
 
@@ -87,7 +87,8 @@ build/                electron-builder build resources
 |---|---|
 | Scaffold, shell, branding, IPC bridge | ✅ Phase 0 |
 | Encrypted DB (sql.js + AES), migrations, auth, first-run setup | ✅ Phase 1 |
-| 2FA: TOTP, recovery codes, trusted devices; staged login | ✅ Phase 2 |
+| 2FA: TOTP, recovery codes | ✅ Phase 2 |
+| Authenticator-only sign-in (no username/password) | ✅ v1.0.25 |
 | Students, batches, guardians, accounts (CRUD services + UI) | ✅ Phase 3 |
 | Fee plans, installments, outstanding/status, fees overview | ✅ Phase 4 |
 | Payments, allocations, receipt numbering, PDF/print, history | ✅ Phase 5 |

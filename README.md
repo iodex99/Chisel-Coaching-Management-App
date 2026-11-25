@@ -16,9 +16,10 @@ storage, full portability, and one-click self-updates.
 - **Portable** — the app and all its data live in a single folder. Copy that
   folder to a USB drive and run it on any Windows PC; it resumes exactly where
   it left off. No installer, no scattered files.
-- **Secure** — credential login + mandatory TOTP two-factor authentication
-  (up to 3 authenticator apps and 3 trusted devices). The database is encrypted
-  at rest (SQLCipher / AES-256) with a key derived from the master password.
+- **Secure, password-free sign-in** — no username or password: sign up by
+  scanning a QR code, sign in with the 6-digit code from an authenticator app
+  (up to 3 apps, plus one-time recovery codes). The database is encrypted at rest
+  (AES-256-GCM).
 - **Self-updating** — the app checks GitHub for new versions, shows an
   "Update available" prompt, and on one click downloads, verifies, swaps and
   relaunches itself. Your data is never touched.
@@ -65,7 +66,7 @@ iteration:
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Process model, IPC, project layout |
 | [docs/DATABASE.md](docs/DATABASE.md) | Schema, migrations, encryption |
-| [docs/SECURITY.md](docs/SECURITY.md) | Auth, 2FA, trusted devices, threat model |
+| [docs/SECURITY.md](docs/SECURITY.md) | Authenticator sign-in, encryption, threat model |
 | [docs/UPDATE_MECHANISM.md](docs/UPDATE_MECHANISM.md) | Release pipeline + in-app updater |
 | [docs/MODULES.md](docs/MODULES.md) | Feature breakdown (fees, expenses) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Install, portable/USB use, backup/restore |
@@ -76,7 +77,7 @@ iteration:
 
 **v1.0.0 — feature-complete.** All modules are implemented and verified:
 
-- ✅ Secure login + mandatory TOTP 2FA (3 apps, 3 trusted devices, recovery codes)
+- ✅ Authenticator-code sign-in — no username/password (3 apps, recovery codes)
 - ✅ Encrypted (AES-256-GCM) portable local database; copy the folder to a USB drive
 - ✅ Students, guardians, batches, accounts
 - ✅ Fee plans, installments, outstanding tracking

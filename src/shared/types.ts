@@ -6,8 +6,9 @@ export interface User {
   displayName: string
 }
 
-/** Login stages. A session progresses login → (enroll | 2fa) → authenticated. */
-export type AuthStage = 'pending-enroll' | 'pending-2fa' | 'authenticated'
+/** Session stages. Sign-in is a single authenticator-code step; 'pending-enroll'
+ * only occurs for data that has no authenticator yet (an old install). */
+export type AuthStage = 'pending-enroll' | 'authenticated'
 
 export interface AuthState {
   /** Has first-run setup been completed? */
@@ -19,10 +20,13 @@ export interface AuthState {
   /** Is login temporarily locked due to failed attempts? */
   locked: boolean
   lockedUntil: string | null
-  username: string | null
+  /** The data was created by a version that used a master password. It needs a
+   * one-time unlock with that password (plus an authenticator code), after
+   * which sign-in is authenticator-code only. */
+  legacyPassword: boolean
 }
 
-export type LoginStatus = 'ok' | '2fa_required' | 'enroll_required'
+export type LoginStatus = 'ok' | 'enroll_required'
 
 export interface LoginResult {
   status: LoginStatus
@@ -41,11 +45,6 @@ export interface ConfirmEnrollInput {
   code: string
 }
 
-export interface VerifyTwoFactorInput {
-  code: string
-  trustDevice?: boolean
-}
-
 export interface TwoFactorAuthenticator {
   id: number
   label: string
@@ -53,20 +52,10 @@ export interface TwoFactorAuthenticator {
   lastUsedAt: string | null
 }
 
-export interface TrustedDevice {
-  id: number
-  label: string
-  createdAt: string
-  lastSeenAt: string | null
-  current: boolean
-}
-
 export interface TwoFactorStatus {
   enrolledCount: number
   authenticators: TwoFactorAuthenticator[]
   recoveryCodesRemaining: number
-  deviceTrusted: boolean
-  trustedDevices: TrustedDevice[]
 }
 
 // --- Accounts ---
@@ -613,18 +602,23 @@ export interface ReportResult {
   totals?: Record<string, string | number | null>
 }
 
+/** First-run setup: the authenticator secret shown as a QR code, plus a code
+ * from the app proving it was scanned. No username or password. */
 export interface SetupInput {
-  username: string
-  password: string
   instituteName?: string
+  secret: string
+  label?: string
+  code: string
 }
 
+/** Sign in with a 6-digit authenticator code or a one-time recovery code. */
 export interface LoginInput {
-  username?: string
-  password: string
+  code: string
 }
 
-export interface ChangePasswordInput {
-  currentPassword: string
-  newPassword: string
+/** One-time unlock of data created by a password-based version. `code` is
+ * required whenever the data already has an authenticator enrolled. */
+export interface LegacyUnlockInput {
+  password: string
+  code?: string
 }

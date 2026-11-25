@@ -10,7 +10,7 @@ vi.mock('electron-log/main', () => ({
   default: { info: () => undefined, warn: () => undefined, error: () => undefined }
 }))
 
-import * as auth from './auth'
+import { setupTestAuth } from './testAuth'
 import * as students from './student'
 import * as fees from './fee'
 import * as payments from './payment'
@@ -24,7 +24,7 @@ beforeAll(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'chisel-pay-'))
   process.env.CHISEL_DATA_DIR = dataDir
   ensureDataDirs()
-  await auth.setup({ username: 'admin', password: 'password123' })
+  await setupTestAuth()
   studentId = students.createStudent({ admissionNo: 'P-1', firstName: 'Pay', status: 'active', guardians: [] }).id
   const plan = fees.saveFeePlan(studentId, {
     name: 'Annual',

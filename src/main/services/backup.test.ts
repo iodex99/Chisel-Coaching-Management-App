@@ -11,6 +11,7 @@ vi.mock('electron-log/main', () => ({
 }))
 
 import * as auth from './auth'
+import { setupTestAuth, testLogin } from './testAuth'
 import * as students from './student'
 import * as backup from './backup'
 import { ensureDataDirs } from '../paths'
@@ -21,7 +22,7 @@ beforeAll(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'chisel-backup-'))
   process.env.CHISEL_DATA_DIR = dataDir
   ensureDataDirs()
-  await auth.setup({ username: 'admin', password: 'password123' })
+  await setupTestAuth()
 })
 
 afterAll(async () => {
@@ -48,7 +49,7 @@ describe('backup & restore', () => {
     await backup.restoreBackup(snapshot.name)
     expect(auth.getAuthState().authenticated).toBe(false)
 
-    await auth.login({ password: 'password123' })
+    await testLogin()
     const list = students.listStudents()
     expect(list.length).toBe(1)
     expect(list[0].admissionNo).toBe('B-1')

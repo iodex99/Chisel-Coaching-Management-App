@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { Modal } from './Modal'
 import { api, errMessage } from '../lib/api'
 
-/** Re-authentication gate: asks for the master password before a sensitive action. */
-export function ConfirmPasswordModal({
+/** Re-authentication gate: asks for a current authenticator code (or a recovery
+ *  code) before a sensitive action. */
+export function ConfirmCodeModal({
   open,
   onClose,
   onVerified,
-  title = 'Confirm your password',
-  description = 'Enter your master password to continue.'
+  title = 'Confirm it’s you',
+  description = 'Enter the 6-digit code from your authenticator app to continue.'
 }: {
   open: boolean
   onClose: () => void
@@ -16,7 +17,7 @@ export function ConfirmPasswordModal({
   title?: string
   description?: string
 }): JSX.Element {
-  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -25,13 +26,10 @@ export function ConfirmPasswordModal({
     setBusy(true)
     setError('')
     try {
-      const ok = await api.auth.verifyPassword({ password })
-      if (ok) {
-        setPassword('')
-        onVerified()
-      } else {
-        setError('Incorrect password')
-      }
+      const ok = await api.auth.verifyCode({ code: code.trim() })
+      setCode('')
+      if (ok) onVerified()
+      else setError('That code is not valid')
     } catch (err) {
       setError(errMessage(err))
     } finally {
@@ -44,19 +42,20 @@ export function ConfirmPasswordModal({
       <form onSubmit={submit} className="space-y-3">
         <p className="text-sm text-slate-500">{description}</p>
         <input
-          className="input"
-          type="password"
+          className="input tracking-[0.3em]"
           autoFocus
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Master password"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 20))}
+          placeholder="000000"
+          aria-label="Authenticator code"
         />
+        <p className="text-xs text-slate-400">Lost your phone? A recovery code works here too.</p>
         {error && <p className="text-sm text-accent-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-outline" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={busy || !password}>
+          <button type="submit" className="btn-primary" disabled={busy || code.trim().length < 6}>
             {busy ? 'Checking…' : 'Continue'}
           </button>
         </div>

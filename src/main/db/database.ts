@@ -142,7 +142,7 @@ export class Db {
    *  A coalesced `schedulePersist` can fire *during* the await below — clearing
    *  `dirty` and reassigning `this.pending` to a new in-flight write. So after
    *  draining the write we were aware of, we persist synchronously regardless of
-   *  `dirty` (cheap and infrequent — only at backup/rekey/restore/quit), then
+   *  `dirty` (cheap and infrequent — only at setup/backup/restore/quit), then
    *  await once more so any write that started mid-flush has finished its rename
    *  before a caller copies the file. */
   async flush(): Promise<void> {
@@ -150,13 +150,6 @@ export class Db {
     this.dirty = false
     this.persist()
     await this.pending
-  }
-
-  /** Re-encrypt under a new key. Callers must `await flush()` first so no
-   *  old-key write is still pending. */
-  rekey(newKey: Buffer): void {
-    this.key = newKey
-    this.persist()
   }
 
   close(): void {
@@ -200,7 +193,7 @@ export async function createNewDatabase(key: Buffer): Promise<Db> {
   return db
 }
 
-/** Open the existing database. Throws if the key (password) is wrong. */
+/** Open the existing database. Throws if the key is wrong (or the file was tampered with). */
 export async function openExistingDatabase(key: Buffer): Promise<Db> {
   const sqljs = await getSqlJs()
   const blob = readFileSync(dbFilePath())
@@ -239,15 +232,4 @@ export function closeDatabase(): void {
  * stale image cannot overwrite the freshly-restored file). */
 export function discardDatabase(): void {
   current = null
-}
-
-/** Copy the encrypted database file into data/backups with a timestamped name. */
-export function backupDbFile(label: string): string | null {
-  if (!existsSync(dbFilePath())) return null
-  const dir = dataPath('backups')
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const dest = dataPath('backups', `chisel-${label}-${stamp}.db`)
-  copyFileSync(dbFilePath(), dest)
-  return dest
 }

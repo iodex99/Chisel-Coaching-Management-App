@@ -13,6 +13,7 @@ vi.mock('electron-log/main', () => ({
 }))
 
 import * as auth from './auth'
+import { setupTestAuth, testLogin } from './testAuth'
 import * as accounts from './account'
 import * as batch from './batch'
 import * as students from './student'
@@ -41,7 +42,7 @@ beforeAll(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'chisel-intg-'))
   process.env.CHISEL_DATA_DIR = dataDir
   ensureDataDirs()
-  await auth.setup({ username: 'admin', password: 'password123', instituteName: 'Chisel' })
+  await setupTestAuth('Chisel')
 })
 
 afterAll(async () => {
@@ -179,7 +180,7 @@ describe('full dummy-data scenario', () => {
 
     await backup.restoreBackup(snap.name)
     expect(auth.getAuthState().authenticated).toBe(false)
-    await auth.login({ password: 'password123' })
+    await testLogin()
     expect(students.listStudents({ status: 'all' }).length).toBe(before) // Z-9 rolled back
   })
 })

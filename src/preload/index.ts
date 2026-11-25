@@ -17,20 +17,19 @@ const api: ChiselApi = {
   },
   auth: {
     getState: () => ipcRenderer.invoke('auth:getState'),
+    beginSetup: () => ipcRenderer.invoke('auth:beginSetup'),
     setup: (input) => ipcRenderer.invoke('auth:setup', input),
     login: (input) => ipcRenderer.invoke('auth:login', input),
+    unlockLegacy: (input) => ipcRenderer.invoke('auth:unlockLegacy', input),
     logout: () => ipcRenderer.invoke('auth:logout'),
-    verifyPassword: (input) => ipcRenderer.invoke('auth:verifyPassword', input),
-    changePassword: (input) => ipcRenderer.invoke('auth:changePassword', input)
+    verifyCode: (input) => ipcRenderer.invoke('auth:verifyCode', input)
   },
   twoFactor: {
     beginEnroll: (input) => ipcRenderer.invoke('twofactor:beginEnroll', input),
     confirmEnroll: (input) => ipcRenderer.invoke('twofactor:confirmEnroll', input),
-    verify: (input) => ipcRenderer.invoke('twofactor:verify', input),
     generateRecoveryCodes: () => ipcRenderer.invoke('twofactor:generateRecoveryCodes'),
     status: () => ipcRenderer.invoke('twofactor:status'),
-    removeAuthenticator: (input) => ipcRenderer.invoke('twofactor:removeAuthenticator', input),
-    removeTrustedDevice: (input) => ipcRenderer.invoke('twofactor:removeTrustedDevice', input)
+    removeAuthenticator: (input) => ipcRenderer.invoke('twofactor:removeAuthenticator', input)
   },
   accounts: {
     list: () => ipcRenderer.invoke('accounts:list'),
