@@ -32,6 +32,12 @@ export const legacyUnlockSchema = z.object({
   code: z.string().trim().max(20).optional()
 })
 
+export const restoreDamagedSchema = z.object({
+  name: z.string().trim().min(1).max(200).regex(/^[\w.-]+$/, 'Invalid backup name'),
+  password: z.string().max(200).optional(),
+  code: z.string().trim().max(20).optional()
+})
+
 export const verifyCodeSchema = z.object({
   code: authCode
 })

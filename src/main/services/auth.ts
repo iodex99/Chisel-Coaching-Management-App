@@ -14,7 +14,8 @@ import {
 } from '../db/keyfile'
 import {
   createNewDatabase,
-  openExistingDatabase,
+  decryptLiveDatabase,
+  openDecryptedDatabase,
   closeDatabase,
   discardDatabase,
   getDb,
@@ -23,6 +24,14 @@ import {
 } from '../db/database'
 import * as twoFactor from './twoFactor'
 import { getSetting } from './settings'
+import { listBackups } from './backup'
+import {
+  findBackupForCode,
+  findBackupForPassword,
+  backupOpensWithPassword,
+  backupAcceptsCode,
+  replaceLiveWithBackup
+} from './damageRecovery'
 import type {
   AuthState,
   AuthStage,
@@ -31,6 +40,8 @@ import type {
   LoginInput,
   LegacyUnlockInput,
   LoginResult,
+  SignInResult,
+  RestoreDamagedInput,
   User
 } from '@shared/types'
 
@@ -177,16 +188,31 @@ export async function setup(input: SetupInput): Promise<LoginResult> {
 
 // --- Sign in ---
 
+const DAMAGED_NO_BACKUP =
+  'The data file could not be opened and no backup could be verified with what you entered. If you are sure it is right, the data file is probably damaged (for example by a power cut while saving) — nothing has been changed; please contact support.'
+
 /** Sign in with an authenticator code or a one-time recovery code. */
-export async function login(input: LoginInput): Promise<LoginResult> {
+export async function login(input: LoginInput): Promise<SignInResult> {
   if (!isInitialized()) throw new Error('The application is not set up yet')
   const kf = readKeyfile()
   if (isLegacyKeyfile(kf)) {
     throw new Error('This data was created with a master password. Unlock it once with that password to continue.')
   }
   if (kf.lockedUntil && Date.parse(kf.lockedUntil) > Date.now()) throw lockError(kf)
+  const code = input.code.trim()
 
-  await openData(dataKeyOf(kf))
+  resetSession()
+  const key = dataKeyOf(kf)
+  const bytes = readLive(key)
+  if (!bytes) {
+    // The stored key does not open the file, so the file is damaged (or was
+    // replaced). A backup that accepts this code proves the code is right.
+    log.error('chisel.db could not be decrypted with the key in keyfile.json — damaged or mismatched data file')
+    const backup = await findBackupForCode(code)
+    if (backup) return { status: 'damaged', backup }
+    throw failure(kf, DAMAGED_NO_BACKUP)
+  }
+  await openBytes(bytes, key)
 
   if (twoFactor.enrolledCount() === 0) {
     // Not reachable through the app (setup enrolls atomically and the last
@@ -195,7 +221,6 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     return { status: 'enroll_required', user: loadUser() }
   }
 
-  const code = input.code.trim()
   if (!(twoFactor.verifyTotp(code) || twoFactor.verifyRecoveryCode(code))) {
     closeDatabase()
     throw failure(kf, 'Invalid authentication code')
@@ -213,18 +238,27 @@ export async function login(input: LoginInput): Promise<LoginResult> {
  *  backup made by one). Verifies the old password and an authenticator code,
  *  then switches the keyfile to code-only sign-in — keeping the same key, so the
  *  database file itself is not rewritten. */
-export async function unlockLegacy(input: LegacyUnlockInput): Promise<LoginResult> {
+export async function unlockLegacy(input: LegacyUnlockInput): Promise<SignInResult> {
   if (!isInitialized()) throw new Error('The application is not set up yet')
   const kf = readKeyfile()
   if (!isLegacyKeyfile(kf)) throw new Error('This data is already up to date — sign in with your authenticator code.')
+  releaseUpgradeLock(kf)
   if (kf.lockedUntil && Date.parse(kf.lockedUntil) > Date.now()) throw lockError(kf)
 
+  resetSession()
   const key = deriveKey(input.password, Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
-  try {
-    await openData(key, true)
-  } catch {
+  const bytes = readLive(key)
+  if (!bytes) {
+    // Wrong password — or the right one and a damaged file. v1.0.24 reported
+    // both as "Incorrect password"; a backup that opens settles which it is.
+    const backup = findBackupForPassword(input.password)
+    if (backup) {
+      log.error(`The password is correct (it opens backup "${backup.name}") but chisel.db does not decrypt — the data file is damaged`)
+      return { status: 'damaged', backup }
+    }
     throw failure(kf, 'Incorrect password')
   }
+  await openBytes(bytes, key)
 
   if (twoFactor.enrolledCount() === 0) {
     // Old data that never finished 2FA enrollment: enroll first, convert after.
@@ -247,20 +281,73 @@ export async function unlockLegacy(input: LegacyUnlockInput): Promise<LoginResul
   return { status: 'ok', user }
 }
 
-/** Open the database with `key`. A wrong key for a legacy password is the
- *  caller's to report; for the stored key it means the files do not match. */
-async function openData(key: Buffer, legacy = false): Promise<void> {
-  session = null // a sign-in attempt always starts from a signed-out state
-  if (isOpen()) closeDatabase()
+/** Replace a damaged live data file with the backup a sign-in offered. Only
+ *  allowed while the live file really cannot be opened with these credentials,
+ *  and only when they open that backup. The damaged files are kept. */
+export async function restoreDamaged(input: RestoreDamagedInput): Promise<void> {
+  if (!isInitialized()) throw new Error('The application is not set up yet')
+  if (isOpen()) throw new Error('Sign out first')
+  const kf = readKeyfile()
+  if (kf.lockedUntil && Date.parse(kf.lockedUntil) > Date.now()) throw lockError(kf)
+
+  const liveKey = isLegacyKeyfile(kf)
+    ? deriveKey(input.password ?? '', Buffer.from(kf.kdf.salt, 'base64'), kf.kdf)
+    : dataKeyOf(kf)
+  if (readLive(liveKey)) throw new Error('The data file is not damaged — sign in normally.')
+
+  const backup = listBackups().find((b) => b.name === input.name && !b.name.startsWith('damaged-'))
+  const ok =
+    !!backup &&
+    ((!!input.password && backupOpensWithPassword(input.name, input.password)) ||
+      (!!input.code && (await backupAcceptsCode(input.name, input.code))))
+  if (!ok) throw failure(kf, 'That backup could not be verified with what you entered')
+
+  replaceLiveWithBackup(input.name)
+}
+
+/** Decrypt the live file; null if the key does not open it. An unreadable file
+ *  (missing, locked by another program) is a real error and is reported as such. */
+function readLive(key: Buffer): Buffer | null {
   try {
-    await openExistingDatabase(key)
+    return decryptLiveDatabase(key)
   } catch (err) {
-    if (legacy) throw err
-    log.error('Could not decrypt the database with the stored key:', err)
+    log.error('Could not read chisel.db:', err)
+    throw new Error(`The data file could not be read: ${(err as Error).message}`)
+  }
+}
+
+/** Open decrypted bytes as the live database. A failure here (e.g. an update
+ *  step) is NOT a credentials problem: report it as-is, never count it. */
+async function openBytes(bytes: Buffer, key: Buffer): Promise<void> {
+  try {
+    await openDecryptedDatabase(bytes, key)
+  } catch (err) {
+    log.error('The data decrypted but could not be opened:', err)
     throw new Error(
-      'The data could not be opened: chisel.db does not match keyfile.json (or is damaged). Restore a backup from Settings → Backups on another copy, or import your data folder again.'
+      `Your sign-in details are correct, but the data could not be opened: ${(err as Error).message}. Nothing was changed — please contact support.`
     )
   }
+}
+
+/** A sign-in attempt always starts from a signed-out state. */
+function resetSession(): void {
+  session = null
+  if (isOpen()) closeDatabase()
+}
+
+/** v1.0.24 counted a damaged data file as wrong passwords, so a client can
+ *  arrive here locked out for hours with the right password. Lift that lock
+ *  once, on the first upgrade attempt; the normal lockout applies after. */
+function releaseUpgradeLock(kf: LegacyKeyfile): void {
+  if (kf.upgradeLockReleased) return
+  kf.upgradeLockReleased = true
+  if (kf.failedAttempts || kf.lockedUntil) {
+    log.warn(`Cleared a v1.0.24 sign-in lock (${kf.failedAttempts} failed attempts) for the one-time upgrade`)
+  }
+  kf.failedAttempts = 0
+  kf.lockedUntil = null
+  kf.updatedAt = now()
+  writeKeyfile(kf)
 }
 
 /** Called after a successful enrollment to leave the pending-enroll stage. */

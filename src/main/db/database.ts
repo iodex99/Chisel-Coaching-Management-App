@@ -1,6 +1,17 @@
 import initSqlJs, { type Database, type SqlJsStatic, type BindParams } from 'sql.js'
-import { readFileSync, existsSync, writeFileSync, renameSync, copyFileSync, mkdirSync } from 'fs'
-import { writeFile, rename } from 'fs/promises'
+import {
+  readFileSync,
+  existsSync,
+  writeFileSync,
+  renameSync,
+  copyFileSync,
+  mkdirSync,
+  openSync,
+  fsyncSync,
+  closeSync,
+  rmSync
+} from 'fs'
+import { open } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
 import log from 'electron-log/main'
@@ -16,7 +27,7 @@ function resolveWasmPath(): string {
   return join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')
 }
 
-async function getSqlJs(): Promise<SqlJsStatic> {
+export async function getSqlJs(): Promise<SqlJsStatic> {
   if (SQL) return SQL
   const fileBuf = readFileSync(resolveWasmPath())
   // sql.js expects an ArrayBuffer; hand it an exact-length copy of the file bytes.
@@ -29,6 +40,43 @@ async function getSqlJs(): Promise<SqlJsStatic> {
 }
 
 const dbFilePath = (): string => dataPath('chisel.db')
+
+/** Write a file and force it to the disk before returning. Without the fsync, a
+ *  power cut or forced shutdown right after the rename can leave chisel.db with
+ *  its new size but unwritten (zeroed) contents, which no key can decrypt. */
+async function writeDurable(path: string, data: Buffer): Promise<void> {
+  const fh = await open(path, 'w')
+  try {
+    await fh.writeFile(data)
+    await fh.sync()
+  } finally {
+    await fh.close()
+  }
+}
+
+function writeDurableSync(path: string, data: Buffer): void {
+  const fd = openSync(path, 'w')
+  try {
+    writeFileSync(fd, data)
+    fsyncSync(fd)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** Copy a file and force the copy to disk (backups must survive a power cut). */
+export function copyFileDurable(from: string, to: string): void {
+  copyFileSync(from, to)
+  const fd = openSync(to, 'r+')
+  try {
+    fsyncSync(fd)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+let tmpCounter = 0
+const tmpPath = (): string => `${dbFilePath()}.${process.pid}.${Date.now()}.${++tmpCounter}.tmp`
 
 /**
  * A thin synchronous wrapper around a sql.js Database that transparently
@@ -105,6 +153,10 @@ export class Db {
   private dirty = false
   private scheduled = false
   private pending: Promise<void> = Promise.resolve()
+  /** Every save takes a sequence number; `onDisk` is the newest one renamed into
+   *  place, so a slower, older save can never land on top of a newer one. */
+  private seq = 0
+  private onDisk = 0
 
   private encryptCurrent(): Buffer {
     return encrypt(Buffer.from(this.sqldb.export()), this.key)
@@ -120,11 +172,22 @@ export class Db {
       if (!this.dirty) return
       this.dirty = false
       const blob = this.encryptCurrent()
-      const tmp = `${dbFilePath()}.${Date.now()}.tmp`
-      this.pending = writeFile(tmp, blob)
-        .then(() => rename(tmp, dbFilePath()))
+      const mySeq = ++this.seq
+      const tmp = tmpPath()
+      this.pending = writeDurable(tmp, blob)
+        .then(() => {
+          // The rename is synchronous so the check and the swap cannot interleave
+          // with a synchronous persist() on the main thread.
+          if (mySeq < this.onDisk) {
+            rmSync(tmp, { force: true }) // a newer state is already on disk
+            return
+          }
+          renameSync(tmp, dbFilePath())
+          this.onDisk = mySeq
+        })
         .catch((e) => {
           this.dirty = true // retry on next change
+          rmSync(tmp, { force: true })
           log.error('Async persist failed:', e)
         })
     })
@@ -133,9 +196,16 @@ export class Db {
   /** Synchronous, authoritative write of the current state. */
   persist(): void {
     this.dirty = false
-    const tmp = `${dbFilePath()}.tmp`
-    writeFileSync(tmp, this.encryptCurrent())
-    renameSync(tmp, dbFilePath())
+    const mySeq = ++this.seq
+    const tmp = tmpPath()
+    try {
+      writeDurableSync(tmp, this.encryptCurrent())
+      renameSync(tmp, dbFilePath())
+    } catch (e) {
+      rmSync(tmp, { force: true })
+      throw e
+    }
+    this.onDisk = mySeq
   }
 
   /** Make the on-disk file authoritative for the current in-memory state.
@@ -193,11 +263,36 @@ export async function createNewDatabase(key: Buffer): Promise<Db> {
   return db
 }
 
-/** Open the existing database. Throws if the key is wrong (or the file was tampered with). */
+/** Decrypt an encrypted database file. Returns null when `key` does not open it —
+ *  a wrong key and a damaged file look identical here (the GCM tag fails), so
+ *  callers must not report null as "wrong password" without checking further.
+ *  An unreadable file (missing, locked) throws instead. */
+export function decryptFile(path: string, key: Buffer): Buffer | null {
+  const blob = readFileSync(path)
+  if (blob.length < 28) return null // shorter than the [iv][tag] header
+  try {
+    return decrypt(blob, key)
+  } catch {
+    return null
+  }
+}
+
+/** Decrypt the live database with `key`, or null if the key does not open it. */
+export function decryptLiveDatabase(key: Buffer): Buffer | null {
+  return decryptFile(dbFilePath(), key)
+}
+
+/** Open the existing database. Throws if the key does not open the file. */
 export async function openExistingDatabase(key: Buffer): Promise<Db> {
+  const bytes = decryptLiveDatabase(key)
+  if (!bytes) throw new Error('The key does not open the database file')
+  return openDecryptedDatabase(bytes, key)
+}
+
+/** Open already-decrypted database bytes as the live database, applying any
+ *  migrations added by an update. Errors here are real errors (not a wrong key). */
+export async function openDecryptedDatabase(bytes: Buffer, key: Buffer): Promise<Db> {
   const sqljs = await getSqlJs()
-  const blob = readFileSync(dbFilePath())
-  const bytes = decrypt(blob, key) // throws on wrong key / tampering
   const db = new Db(new sqljs.Database(bytes), key)
   if (hasPendingMigrations(db)) backupBeforeMigration()
   runMigrations(db) // apply any migrations added by an update
@@ -213,9 +308,9 @@ function backupBeforeMigration(): void {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const dir = dataPath('backups', `pre-update-${stamp}`)
     mkdirSync(dir, { recursive: true })
-    copyFileSync(dbFilePath(), join(dir, 'chisel.db'))
+    copyFileDurable(dbFilePath(), join(dir, 'chisel.db'))
     const kf = dataPath('keyfile.json')
-    if (existsSync(kf)) copyFileSync(kf, join(dir, 'keyfile.json'))
+    if (existsSync(kf)) copyFileDurable(kf, join(dir, 'keyfile.json'))
   } catch (e) {
     log.warn('Pre-update backup failed:', e)
   }

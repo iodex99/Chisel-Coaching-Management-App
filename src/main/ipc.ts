@@ -26,6 +26,7 @@ import {
   setupSchema,
   loginSchema,
   legacyUnlockSchema,
+  restoreDamagedSchema,
   verifyCodeSchema,
   beginEnrollSchema,
   confirmEnrollSchema,
@@ -127,6 +128,7 @@ export function registerIpc(): void {
   handle('auth:setup', setupSchema, (i) => auth.setup(i))
   handle('auth:login', loginSchema, (i) => auth.login(i))
   handle('auth:unlockLegacy', legacyUnlockSchema, (i) => auth.unlockLegacy(i))
+  handle('auth:restoreDamaged', restoreDamagedSchema, (i) => auth.restoreDamaged(i))
   handle('auth:logout', null, () => auth.logout())
   handleAuthed('auth:verifyCode', verifyCodeSchema, (i) => auth.verifyCode(i.code))
 

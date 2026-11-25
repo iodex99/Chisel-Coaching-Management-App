@@ -20,6 +20,27 @@ project uses semantic versioning.
   all — every sign-in now needs a code).
 - Error messages no longer start with “Error invoking remote method …”.
 
+### Fixed — “the right password is rejected”
+- **Cause:** the database file is encrypted, and decrypting it was also the
+  password check. A **damaged data file** — most often a save cut short by a
+  power cut or forced shutdown, because saves were not forced to disk — fails
+  that check exactly like a wrong password. v1.0.24 reported *every* failure to
+  open the data as “Incorrect password” (without logging the real reason) and
+  counted it toward the lockout, so the correct password was refused every time,
+  then locked out for longer and longer.
+- **Saves are now durable:** every save is flushed to the disk before it
+  replaces the data file, as are backups; an older background save can no
+  longer overwrite a newer one (which could lose the last change at sign-out or
+  quit).
+- **A damaged file is now recognised:** if the password / code does not open the
+  data file but does open a backup, the app says *“Your password (code) is
+  correct — but the data file is damaged”* and offers the newest working backup
+  in one click. The damaged file is kept in `backups/damaged-…`, never deleted.
+  Wrong passwords / codes are still refused and counted as before.
+- Other problems (e.g. data that decrypts but cannot be opened) are shown and
+  logged as what they are, and never counted as wrong passwords.
+- A lockout left behind by v1.0.24 is lifted once for the one-time upgrade.
+
 ### Upgrade & data safety
 - **Existing installs:** the first launch after updating shows a **one-time
   upgrade** screen — enter the old master password **one last time** plus an

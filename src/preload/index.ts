@@ -21,6 +21,7 @@ const api: ChiselApi = {
     setup: (input) => ipcRenderer.invoke('auth:setup', input),
     login: (input) => ipcRenderer.invoke('auth:login', input),
     unlockLegacy: (input) => ipcRenderer.invoke('auth:unlockLegacy', input),
+    restoreDamaged: (input) => ipcRenderer.invoke('auth:restoreDamaged', input),
     logout: () => ipcRenderer.invoke('auth:logout'),
     verifyCode: (input) => ipcRenderer.invoke('auth:verifyCode', input)
   },

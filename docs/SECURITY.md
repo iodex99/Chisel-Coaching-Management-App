@@ -33,6 +33,28 @@ TOTP authenticator app (Google Authenticator, Microsoft Authenticator, Authy, �
 > safe. In exchange, there is no password to forget: losing a password used to
 > mean losing the data permanently.
 
+## Damaged data file vs. wrong credentials
+
+AES-GCM cannot tell a wrong key from a damaged file: both fail the auth tag.
+v1.0.24 reported both as "Incorrect password" (and counted them toward the
+lockout), so a data file damaged by an interrupted save rejected the correct
+password forever. Now (`auth.login` / `auth.unlockLegacy` →
+`services/damageRecovery.ts`):
+
+- If the credentials do not open the live file, the newest backups are tried
+  with the **same** credentials (a password for password-based backups; a TOTP
+  or unused recovery code, checked read-only, for v1.0.25+ backups). If one
+  opens, the result is `damaged` and the UI offers that backup.
+- If none opens, it is a wrong password / code: refused and counted, as before
+  (so this check cannot be used to test codes past the lockout).
+- `auth.restoreDamaged` re-checks the credentials against that backup and only
+  runs while the live file really cannot be opened. The damaged files are moved
+  to `backups/damaged-<time>/`, never deleted.
+- Errors after a successful decrypt (e.g. an update step) are reported and
+  logged as themselves and never counted.
+- Saves and backup copies are `fsync`ed before they replace a file, so a power
+  cut can no longer leave a renamed-but-unwritten data file.
+
 ## Two-factor (TOTP) details
 
 - Implemented with `otplib`; ±1 time step (30 s) tolerance for clock skew.

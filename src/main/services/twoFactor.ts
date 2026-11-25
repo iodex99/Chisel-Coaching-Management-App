@@ -101,7 +101,7 @@ function formatRecoveryCode(bytes: Buffer): string {
   return `${hex.slice(0, 5)}-${hex.slice(5)}`
 }
 
-function normalizeRecoveryCode(code: string): string {
+export function normalizeRecoveryCode(code: string): string {
   return code.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
 }
 

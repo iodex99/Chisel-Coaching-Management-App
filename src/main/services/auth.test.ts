@@ -258,12 +258,13 @@ describe('authenticator management', () => {
 })
 
 describe('wrong-key and wrong-version protection', () => {
-  it('a keyfile that does not match the database refuses to open without counting a failure', async () => {
+  it('a keyfile that does not match the database (and no backup to verify against) is refused and counted', async () => {
     await signOut()
     const good = readKeyfile() as KeyfileV2
     writeKeyfile({ ...good, dataKey: Buffer.alloc(32, 7).toString('base64') })
     await expect(auth.login({ code: code() })).rejects.toThrow(/could not be opened/)
-    expect(readKeyfile().failedAttempts).toBe(0)
+    // Counted, so the backup check can never be used to test codes past the lockout.
+    expect(readKeyfile().failedAttempts).toBe(1)
     expect(isOpen()).toBe(false)
     writeKeyfile(good)
     await auth.login({ code: code() })

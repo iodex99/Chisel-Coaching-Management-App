@@ -4,6 +4,8 @@ import type {
   LoginInput,
   LegacyUnlockInput,
   LoginResult,
+  SignInResult,
+  RestoreDamagedInput,
   EnrollStart,
   ConfirmEnrollInput,
   TwoFactorAuthenticator,
@@ -75,9 +77,11 @@ export interface ChiselApi {
     /** First run: verify the code from the scanned app and create the data. */
     setup(input: SetupInput): Promise<LoginResult>
     /** Sign in with an authenticator code or a recovery code. */
-    login(input: LoginInput): Promise<LoginResult>
+    login(input: LoginInput): Promise<SignInResult>
     /** One-time unlock of data from a password-based version. */
-    unlockLegacy(input: LegacyUnlockInput): Promise<LoginResult>
+    unlockLegacy(input: LegacyUnlockInput): Promise<SignInResult>
+    /** Replace a damaged data file with the backup a sign-in offered. */
+    restoreDamaged(input: RestoreDamagedInput): Promise<void>
     logout(): Promise<void>
     /** Re-authentication gate for sensitive actions: true if the code is valid. */
     verifyCode(input: { code: string }): Promise<boolean>

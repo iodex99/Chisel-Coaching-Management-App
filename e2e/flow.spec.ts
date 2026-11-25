@@ -275,3 +275,27 @@ test('existing password-based data: one-time unlock with the old password, then 
   await page.getByRole('link', { name: 'Batches' }).click()
   await expect(page.getByText('E2E Batch')).toBeVisible()
 })
+
+test('a damaged data file (power cut while saving): the right code is recognised and a backup restores it', async () => {
+  await app.close() // the exit auto-backup holds everything so far
+  const size = readFileSync(join(dataDir, 'chisel.db')).length
+  writeFileSync(join(dataDir, 'chisel.db'), Buffer.alloc(size)) // what a power cut can leave behind
+  await launch()
+
+  await page.getByLabel('Authenticator code').fill(authenticator.generate(secret))
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByText('Your code is correct — but the data file is damaged.')).toBeVisible()
+  await expect(page.getByText(/Invalid authentication code|Incorrect/)).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Restore this backup and sign in' }).click()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await page.getByRole('link', { name: 'Batches' }).click()
+  await expect(page.getByText('E2E Batch')).toBeVisible()
+  await page.getByRole('link', { name: 'Students' }).click()
+  await expect(page.getByText('Import Test')).toBeVisible()
+
+  // The damaged file was kept aside, not deleted.
+  const aside = readdirSync(join(dataDir, 'backups')).filter((n) => n.startsWith('damaged-'))
+  expect(aside).toHaveLength(1)
+  expect(readFileSync(join(dataDir, 'backups', aside[0], 'chisel.db')).every((b) => b === 0)).toBe(true)
+})

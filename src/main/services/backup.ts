@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, statSync, rmSync } from 'fs'
 import { join } from 'path'
 import { dataPath } from '../paths'
-import { isOpen, flushCurrent, flushCurrentSync } from '../db/database'
+import { isOpen, flushCurrent, flushCurrentSync, copyFileDurable } from '../db/database'
 import { getSetting, setSetting } from './settings'
 import { discardSession } from './auth'
 import type { BackupInfo } from '@shared/types'
@@ -33,8 +33,8 @@ function copyBackup(label: string): BackupInfo {
   const name = `${label}-${stamp()}`
   const dir = join(backupsRoot(), name)
   mkdirSync(dir, { recursive: true })
-  copyFileSync(dbFile(), join(dir, 'chisel.db'))
-  if (existsSync(keyFile())) copyFileSync(keyFile(), join(dir, 'keyfile.json'))
+  copyFileDurable(dbFile(), join(dir, 'chisel.db'))
+  if (existsSync(keyFile())) copyFileDurable(keyFile(), join(dir, 'keyfile.json'))
   return info(name)
 }
 
@@ -69,9 +69,9 @@ export async function restoreBackup(name: string): Promise<void> {
     /* best-effort safety snapshot */
   }
   discardSession()
-  copyFileSync(join(dir, 'chisel.db'), dbFile())
+  copyFileDurable(join(dir, 'chisel.db'), dbFile())
   const kf = join(dir, 'keyfile.json')
-  if (existsSync(kf)) copyFileSync(kf, keyFile())
+  if (existsSync(kf)) copyFileDurable(kf, keyFile())
 }
 
 export function getAutoBackup(): boolean {

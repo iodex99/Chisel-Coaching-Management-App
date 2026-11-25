@@ -33,6 +33,25 @@ export interface LoginResult {
   user: User
 }
 
+/** The credentials are right but the live data file cannot be decrypted (e.g.
+ *  a save interrupted by a power cut). `backup` is the newest backup that the
+ *  same credentials open; restoring it is offered to the user. */
+export interface DamagedDataResult {
+  status: 'damaged'
+  backup: { name: string; createdAt: string }
+}
+
+/** Outcome of a sign-in attempt (code sign-in or the one-time legacy unlock). */
+export type SignInResult = LoginResult | DamagedDataResult
+
+/** Restore the offered backup over a damaged data file. The same credentials
+ *  are checked again against that backup; the damaged file is kept. */
+export interface RestoreDamagedInput {
+  name: string
+  password?: string
+  code?: string
+}
+
 export interface EnrollStart {
   secret: string
   otpauthUrl: string

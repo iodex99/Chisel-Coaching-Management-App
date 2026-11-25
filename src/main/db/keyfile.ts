@@ -36,6 +36,8 @@ export interface LegacyKeyfile extends KeyfileCommon {
   version: 1
   username: string
   kdf: { salt: string } & KdfParams
+  /** Set by v1.0.25 when it lifts a lock left by v1.0.24 (once only). */
+  upgradeLockReleased?: boolean
 }
 
 export type KeyfileData = KeyfileV2 | LegacyKeyfile

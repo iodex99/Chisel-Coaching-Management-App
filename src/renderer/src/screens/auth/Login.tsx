@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import type { LoginResult } from '@shared/types'
+import type { LoginResult, SignInResult, DamagedDataResult } from '@shared/types'
 import { AuthCard } from '../../components/AuthCard'
 import { useAuth } from '../../store/auth'
 import { api, errMessage } from '../../lib/api'
+import { DamagedDataPanel } from './DamagedDataPanel'
+
+const RESTORED_RETRY = 'Backup restored. Enter a fresh code to sign in.'
 
 /** Sign in with a code from the authenticator app (or a recovery code). Data
  *  from a password-based version is unlocked once with that password first. */
@@ -11,23 +14,66 @@ export default function Login({ onResult }: { onResult: (res: LoginResult) => vo
   return legacy ? <LegacyUnlock onResult={onResult} /> : <CodeSignIn onResult={onResult} />
 }
 
+/** Hand a sign-in result on, or — when the credentials were right but the data
+ *  file is damaged — return it so the screen can offer the backup. */
+function settle(res: SignInResult, onResult: (res: LoginResult) => void): DamagedDataResult | null {
+  if (res.status === 'damaged') return res
+  onResult(res)
+  return null
+}
+
 function CodeSignIn({ onResult }: { onResult: (res: LoginResult) => void }): JSX.Element {
+  const refresh = useAuth((s) => s.refresh)
   const [code, setCode] = useState('')
   const [useRecovery, setUseRecovery] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [damaged, setDamaged] = useState<DamagedDataResult | null>(null)
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      onResult(await api.auth.login({ code: code.trim() }))
+      const d = settle(await api.auth.login({ code: code.trim() }), onResult)
+      if (d) {
+        setDamaged(d)
+        setBusy(false)
+      }
     } catch (err) {
       setError(errMessage(err))
       setBusy(false)
       setCode('')
     }
+  }
+
+  async function restore(d: DamagedDataResult): Promise<void> {
+    await api.auth.restoreDamaged({ name: d.backup.name, code: code.trim() })
+    await refresh()
+    try {
+      if (settle(await api.auth.login({ code: code.trim() }), onResult)) throw new Error(RESTORED_RETRY)
+    } catch {
+      // The code may have expired while reading; the data is fine now.
+      setDamaged(null)
+      setCode('')
+      setError(RESTORED_RETRY)
+    }
+  }
+
+  if (damaged) {
+    return (
+      <AuthCard width="max-w-md">
+        <DamagedDataPanel
+          result={damaged}
+          what="code"
+          onRestore={() => restore(damaged)}
+          onCancel={() => {
+            setDamaged(null)
+            setCode('')
+          }}
+        />
+      </AuthCard>
+    )
   }
 
   return (
@@ -99,22 +145,58 @@ function CodeSignIn({ onResult }: { onResult: (res: LoginResult) => void }): JSX
 }
 
 function LegacyUnlock({ onResult }: { onResult: (res: LoginResult) => void }): JSX.Element {
+  const refresh = useAuth((s) => s.refresh)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [damaged, setDamaged] = useState<DamagedDataResult | null>(null)
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      onResult(await api.auth.unlockLegacy({ password, code: code.trim() || undefined }))
+      const d = settle(await api.auth.unlockLegacy({ password, code: code.trim() || undefined }), onResult)
+      if (d) {
+        setDamaged(d)
+        setBusy(false)
+      }
     } catch (err) {
       setError(errMessage(err))
       setBusy(false)
       setCode('')
     }
+  }
+
+  async function restore(d: DamagedDataResult): Promise<void> {
+    await api.auth.restoreDamaged({ name: d.backup.name, password })
+    await refresh()
+    try {
+      if (settle(await api.auth.unlockLegacy({ password, code: code.trim() || undefined }), onResult)) {
+        throw new Error(RESTORED_RETRY)
+      }
+    } catch (err) {
+      setDamaged(null)
+      setCode('')
+      setError(`Backup restored. ${errMessage(err) === RESTORED_RETRY ? '' : errMessage(err) + ' — '}enter a fresh code to finish.`)
+    }
+  }
+
+  if (damaged) {
+    return (
+      <AuthCard width="max-w-md">
+        <DamagedDataPanel
+          result={damaged}
+          what="password"
+          onRestore={() => restore(damaged)}
+          onCancel={() => {
+            setDamaged(null)
+            setCode('')
+          }}
+        />
+      </AuthCard>
+    )
   }
 
   return (
