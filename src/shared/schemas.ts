@@ -172,6 +172,7 @@ export const studentFilterSchema = z.object({
 // --- Fees ---
 
 export const feeInstallmentInputSchema = z.object({
+  id: z.number().int().positive().optional(),
   label: z.string().trim().max(60).optional(),
   dueAmount: z.number().int().min(0),
   dueDate: isoDateOptional

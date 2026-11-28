@@ -24,6 +24,7 @@ export default function StudentDetail(): JSX.Element {
   const nav = useNavigate()
   const studentId = Number(id)
   const [collecting, setCollecting] = useState(false)
+  const [showCancelled, setShowCancelled] = useState<'all' | 'active' | 'cancelled'>('all')
   const { data: student, isLoading } = useQuery({
     queryKey: ['student', studentId],
     queryFn: () => api.students.get({ id: studentId })
@@ -113,11 +114,23 @@ export default function StudentDetail(): JSX.Element {
         <section className="lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Payment history</h2>
-            <button className="btn-primary" onClick={() => setCollecting(true)}>
-              <Plus size={16} /> Collect payment
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                className="input w-48"
+                aria-label="Show payments"
+                value={showCancelled}
+                onChange={(e) => setShowCancelled(e.target.value as 'all' | 'active' | 'cancelled')}
+              >
+                <option value="all">All (incl. cancelled)</option>
+                <option value="active">Hide cancelled</option>
+                <option value="cancelled">Cancelled only</option>
+              </select>
+              <button className="btn-primary" onClick={() => setCollecting(true)}>
+                <Plus size={16} /> Collect payment
+              </button>
+            </div>
           </div>
-          <PaymentHistory filter={{ studentId, includeCancelled: true }} showStudent={false} />
+          <PaymentHistory filter={{ studentId, cancelled: showCancelled }} showStudent={false} />
         </section>
       </div>
 

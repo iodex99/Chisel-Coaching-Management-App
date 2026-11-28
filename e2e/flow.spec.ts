@@ -299,3 +299,50 @@ test('a damaged data file (power cut while saving): the right code is recognised
   expect(aside).toHaveLength(1)
   expect(readFileSync(join(dataDir, 'backups', aside[0], 'chisel.db')).every((b) => b === 0)).toBe(true)
 })
+
+test('fee plan can be edited after a part-payment; payment history can hide cancelled entries', async () => {
+  // Signed in from the previous test. Pay ₹5,000 of the imported student's ₹6,000 first installment,
+  // plus a payment that is then cancelled — through the app's own bridge.
+  const studentId = await page.evaluate(async () => {
+    const api = (window as unknown as { api: any }).api
+    const s = (await api.students.list({ search: 'E2E-1', status: 'all' })).find((x: any) => x.admissionNo === 'E2E-1')
+    const plan = await api.fees.getPlan({ studentId: s.id })
+    const [i1] = plan.installments
+    await api.payments.record({ studentId: s.id, amount: 500000, paymentDate: '2026-11-26', mode: 'cash', allocations: [{ installmentId: i1.id, amount: 500000 }] })
+    const bad = await api.payments.record({ studentId: s.id, amount: 10000, paymentDate: '2026-11-26', mode: 'cash', remarks: 'typo' })
+    await api.payments.cancel({ id: bad.id, reason: 'typo' })
+    location.hash = `#/students/${s.id}`
+    return s.id as number
+  })
+  expect(studentId).toBeGreaterThan(0)
+  await expect(page.getByRole('heading', { name: 'Fee plan' })).toBeVisible()
+  const feeSection = page.locator('section', { has: page.getByRole('heading', { name: 'Fee plan' }) })
+
+  // --- Edit the plan: absorb the part-payment into installment 1, move ₹1,000 to installment 2 ---
+  await feeSection.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(page.getByText('₹5,000.00 already paid on this installment')).toBeVisible()
+  await page.getByRole('button', { name: 'Set to amount paid' }).click()
+  await expect(page.getByText(/must match \(add ₹1,000/)).toBeVisible()
+  // Going below the amount paid is caught before saving.
+  await page.getByLabel('Amount 1').fill('4000')
+  await expect(page.getByText(/the amount can’t be less than that/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save fee plan' })).toBeDisabled()
+  await page.getByLabel('Amount 1').fill('5000')
+  await page.getByLabel('Amount 2').fill('7000')
+  await page.getByRole('button', { name: 'Save fee plan' }).click()
+  await expect(page.getByRole('heading', { name: 'Edit fee plan' })).toHaveCount(0)
+  const rows = feeSection.locator('tbody tr')
+  await expect(rows.nth(0)).toContainText('₹5,000.00')
+  await expect(rows.nth(0)).toContainText('paid')
+  await expect(rows.nth(1)).toContainText('₹7,000.00')
+
+  // --- Payment history filter ---
+  const history = page.locator('table').last()
+  await expect(history.getByText('cancelled')).toHaveCount(1) // default: all, incl. cancelled
+  await page.getByLabel('Show payments').selectOption('active')
+  await expect(history.getByText('cancelled')).toHaveCount(0)
+  await expect(history.getByText('₹5,000.00')).toBeVisible()
+  await page.getByLabel('Show payments').selectOption('cancelled')
+  await expect(history.getByText('₹5,000.00')).toHaveCount(0)
+  await expect(history.getByText('cancelled')).toHaveCount(1)
+})

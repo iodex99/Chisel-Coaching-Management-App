@@ -274,6 +274,8 @@ export interface FeeInstallmentView {
   paid: number
   outstanding: number
   status: InstallmentStatus
+  /** Any payment (active or cancelled) is linked to it — it can't be removed. */
+  hasPayments: boolean
 }
 
 export interface FeePlanView {
@@ -289,6 +291,8 @@ export interface FeePlanView {
 }
 
 export interface FeeInstallmentInput {
+  /** Set when editing an existing installment (keeps its recorded payments). */
+  id?: number
   label?: string
   dueAmount: number
   dueDate?: string

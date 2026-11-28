@@ -120,9 +120,20 @@ export function FeePlanPanel({ studentId, defaultBatchId }: { studentId: number;
 }
 
 interface Row {
+  /** Existing installment id (kept so recorded payments stay attached). */
+  id?: number
   label: string
   amount: string // rupees
   dueDate: string
+  /** Paid on it so far (paise, active payments) — the amount can't go below this. */
+  paid: number
+  /** Any payment (even cancelled) is linked to it — it can't be removed. */
+  locked: boolean
+}
+
+const isoPlusMonths = (start: Date, months: number): string => {
+  const d = new Date(start.getFullYear(), start.getMonth() + months, start.getDate())
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function FeePlanEditor({
@@ -168,8 +179,15 @@ export function FeePlanEditor({
   const [notes, setNotes] = useState(plan?.notes ?? '')
   const [rows, setRows] = useState<Row[]>(
     plan
-      ? plan.installments.map((i) => ({ label: i.label ?? '', amount: paiseToRupees(i.dueAmount), dueDate: i.dueDate ?? '' }))
-      : [{ label: 'Installment 1', amount: '', dueDate: todayIso() }]
+      ? plan.installments.map((i) => ({
+          id: i.id,
+          label: i.label ?? '',
+          amount: paiseToRupees(i.dueAmount),
+          dueDate: i.dueDate ?? '',
+          paid: i.paid,
+          locked: i.hasPayments
+        }))
+      : [{ label: 'Installment 1', amount: '', dueDate: todayIso(), paid: 0, locked: false }]
   )
   const [splitCount, setSplitCount] = useState('3')
   const [error, setError] = useState('')
@@ -178,6 +196,9 @@ export function FeePlanEditor({
   const netPaise = rupeesToPaise(total) - rupeesToPaise(discount)
   const sumPaise = rows.reduce((s, r) => s + rupeesToPaise(r.amount), 0)
   const matches = sumPaise === netPaise
+  const belowPaid = rows.filter((r) => rupeesToPaise(r.amount) < r.paid)
+  const lockedRows = rows.filter((r) => r.locked)
+  const lockedPaise = lockedRows.reduce((s, r) => s + rupeesToPaise(r.amount), 0)
 
   function setRow(i: number, key: keyof Row, value: string): void {
     setRows((rs) => {
@@ -187,19 +208,24 @@ export function FeePlanEditor({
     })
   }
 
+  /** Split the net fee equally into N installments. Installments that already
+   *  have payments are kept as they are; only the rest of the fee is split. */
   function splitEqually(): void {
     const n = Math.max(1, Math.min(60, parseInt(splitCount, 10) || 1))
-    const per = Math.floor(netPaise / n)
-    const remainder = netPaise - per * n
+    const toSplit = netPaise - lockedPaise
+    if (toSplit < 0) return setError('The installments that already have payments add up to more than the net fee')
+    setError('')
+    const per = Math.floor(toSplit / n)
+    const remainder = toSplit - per * n
     const start = new Date()
-    const next: Row[] = []
+    const next: Row[] = lockedRows.slice()
     for (let i = 0; i < n; i++) {
-      const d = new Date(start.getFullYear(), start.getMonth() + i, start.getDate())
-      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
       next.push({
-        label: `Installment ${i + 1}`,
+        label: `Installment ${next.length + 1}`,
         amount: paiseToRupees(per + (i === n - 1 ? remainder : 0)),
-        dueDate: iso
+        dueDate: isoPlusMonths(start, i),
+        paid: 0,
+        locked: false
       })
     }
     setRows(next)
@@ -215,6 +241,7 @@ export function FeePlanEditor({
       discount: rupeesToPaise(discount),
       notes: notes.trim() || undefined,
       installments: rows.map((r) => ({
+        id: r.id,
         label: r.label.trim() || undefined,
         dueAmount: rupeesToPaise(r.amount),
         dueDate: r.dueDate || undefined
@@ -266,7 +293,7 @@ export function FeePlanEditor({
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-600">Installments</span>
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">Split into</span>
+            <span className="text-slate-400">{lockedRows.length > 0 ? 'Split the rest into' : 'Split into'}</span>
             <input
               className="input w-16 py-1"
               value={splitCount}
@@ -278,24 +305,60 @@ export function FeePlanEditor({
           </div>
         </div>
         <div className="space-y-2">
-          {rows.map((r, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2">
-              <input className="input col-span-4" placeholder="Label" value={r.label} onChange={(e) => setRow(i, 'label', e.target.value)} />
-              <input className="input col-span-3" type="number" min="0" step="0.01" placeholder="Amount" value={r.amount} onChange={(e) => setRow(i, 'amount', e.target.value)} />
-              <div className="col-span-4">
-                <DateField value={r.dueDate} onChange={(v) => setRow(i, 'dueDate', v)} />
+          {rows.map((r, i) => {
+            const low = rupeesToPaise(r.amount) < r.paid
+            return (
+              <div key={r.id ?? `new-${i}`}>
+                <div className="grid grid-cols-12 gap-2">
+                  <input className="input col-span-4" placeholder="Label" value={r.label} onChange={(e) => setRow(i, 'label', e.target.value)} />
+                  <input
+                    className={`input col-span-3 ${low ? 'border-accent-500' : ''}`}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Amount"
+                    aria-label={`Amount ${i + 1}`}
+                    value={r.amount}
+                    onChange={(e) => setRow(i, 'amount', e.target.value)}
+                  />
+                  <div className="col-span-4">
+                    <DateField value={r.dueDate} onChange={(v) => setRow(i, 'dueDate', v)} />
+                  </div>
+                  <button
+                    type="button"
+                    className="col-span-1 text-slate-400 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-30"
+                    disabled={r.locked}
+                    title={r.locked ? 'Payments are recorded against this installment — change its amount instead' : 'Remove'}
+                    onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                {r.paid > 0 && (
+                  <p className={`mt-0.5 pl-1 text-xs ${low ? 'text-accent-600' : 'text-slate-400'}`}>
+                    {fmtMoney(r.paid)} already paid on this installment
+                    {low ? ' — the amount can’t be less than that' : ''}
+                    {!low && rupeesToPaise(r.amount) !== r.paid && (
+                      <button type="button" className="ml-2 text-brand-600 hover:underline" onClick={() => setRow(i, 'amount', paiseToRupees(r.paid))}>
+                        Set to amount paid
+                      </button>
+                    )}
+                  </p>
+                )}
               </div>
-              <button type="button" className="col-span-1 text-slate-400 hover:text-accent-600" onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}>
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
-        <button type="button" className="btn-ghost mt-2" onClick={() => setRows((rs) => [...rs, { label: `Installment ${rs.length + 1}`, amount: '', dueDate: '' }])}>
+        <button
+          type="button"
+          className="btn-ghost mt-2"
+          onClick={() => setRows((rs) => [...rs, { label: `Installment ${rs.length + 1}`, amount: '', dueDate: '', paid: 0, locked: false }])}
+        >
           <Plus size={14} /> Add installment
         </button>
         <p className={`mt-2 text-sm ${matches ? 'text-green-600' : 'text-accent-600'}`}>
-          Installments total {fmtMoney(sumPaise)} / Net {fmtMoney(netPaise)} {matches ? '✓' : '— must match'}
+          Installments total {fmtMoney(sumPaise)} / Net {fmtMoney(netPaise)}{' '}
+          {matches ? '✓' : `— must match (${sumPaise < netPaise ? 'add' : 'remove'} ${fmtMoney(Math.abs(netPaise - sumPaise))})`}
         </p>
       </div>
 
@@ -309,7 +372,7 @@ export function FeePlanEditor({
         <button type="button" className="btn-outline" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="btn-primary" disabled={busy || !matches}>
+        <button type="submit" className="btn-primary" disabled={busy || !matches || belowPaid.length > 0}>
           {busy ? 'Saving…' : 'Save fee plan'}
         </button>
       </div>

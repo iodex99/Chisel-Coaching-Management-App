@@ -4,6 +4,29 @@ All notable changes to the Chisel Coaching Management Application are recorded
 here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the
 project uses semantic versioning.
 
+## [1.0.26]
+
+### Changed
+- **Fee plans can be edited after payments are recorded.** Students rarely pay
+  the exact installment, so installment amounts, dates and names, the total fee
+  and discount can all be changed at any time, and installments added. The plan
+  is edited in place, so every recorded payment stays attached to its
+  installment and receipts are unchanged.
+  - An installment can't be set below what has already been paid on it; the
+    editor shows “₹X already paid on this installment” and offers **Set to
+    amount paid** (e.g. ₹30,000 paid of ₹33,250 → set it to ₹30,000 and move
+    ₹3,250 to the next one). The total line says how much to add or remove.
+  - Installments with payments (even cancelled ones) can't be removed.
+  - **Generate** now keeps the installments that already have payments and
+    splits only the rest of the fee.
+  - Edits to a plan with payments are recorded in the audit log.
+- **Student payment history has a filter:** *All (incl. cancelled)*, *Hide
+  cancelled* or *Cancelled only*.
+
+### Data safety
+- No database change. Existing plans, payments and receipts are untouched; the
+  edit only updates the plan and its installments.
+
 ## [1.0.25]
 
 ### Changed
